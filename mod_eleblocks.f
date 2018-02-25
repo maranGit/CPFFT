@@ -57,24 +57,24 @@ c
 c                global vectors of element stress data
 c               --------------------------------------
 c
-c        type (blocks_ptr_type), save, dimension(:),
-c     &         allocatable :: urcs_n_blocks, urcs_n1_blocks
-c        integer, dimension (:), allocatable, save :: urcs_blk_list
+        type (blocks_ptr_type), save, dimension(:),
+     &         allocatable :: urcs_n_blocks, urcs_n1_blocks
+        integer, dimension (:), allocatable, save :: urcs_blk_list
 c
 c                global vectors of element strain data
 c               --------------------------------------
 c
-c        type (blocks_ptr_type), save, dimension(:),
-c     &         allocatable :: eps_n_blocks, eps_n1_blocks
-c        integer, dimension (:), allocatable, save :: eps_blk_list
+        type (blocks_ptr_type), save, dimension(:),
+     &         allocatable :: eps_n_blocks, eps_n1_blocks
+        integer, dimension (:), allocatable, save :: eps_blk_list
 c
 c               element rotation matrices at Gauss points for finite
 c               strains
 c               ----------------------------------------------------
 c
-c        type (blocks_ptr_type), save, dimension(:),
-c     &         allocatable :: rot_n_blocks, rot_n1_blocks
-c        integer, dimension (:), allocatable, save :: rot_blk_list
+        type (blocks_ptr_type), save, dimension(:),
+     &         allocatable :: rot_n_blocks, rot_n1_blocks
+        integer, dimension (:), allocatable, save :: rot_blk_list
 c
 c               material dependent element history data in blocks
 c               -------------------------------------------------
@@ -91,7 +91,7 @@ c               ----------------------------------------------------------
 c
         type (blocks_allocatable_type), save, dimension(:),
      &         allocatable :: cep_blocks
-c        integer, dimension (:), allocatable, save :: cep_blk_list
+        integer, dimension (:), allocatable, save :: cep_blk_list
 c
 c               number of gauss points for elements in blocks
 c               ---------------------------------------------

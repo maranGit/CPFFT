@@ -20,6 +20,8 @@ c     problem size
       ndim1 = 3 ! defined in param_def
       N = 31
       nstep = 1
+      phase = 0
+      phase(23:31, 1:9, 23:31) = 1
       
 c     initialize parameters in common block
       step = 0
@@ -33,7 +35,11 @@ c     initialize parameters in common block
       veclen = N3 * 9
       dims = [N, N, N]
       debug = .true.
-      open(out, file = "RanOut")
+      open(out, file = "RanOut.out")
+c
+c     autoblock for openmp, store in elblks (elem_block_data.mod)
+      matList = reshape( phase, (/N3/))
+      call inelbk( matList )
 c
 c     allocate variables in module
 c
@@ -45,19 +51,6 @@ c     initialize deformation gradient
       Fn1 = Fn
       Pn = 0
       Pn1 = 0
-
-c     read material table
-      phase = 0
-      phase(23:31, 1:9, 23:31) = 1
-      matList = reshape( phase, (/N3/))
-
-c     autoblock for openmp, store in elblks (elem_block_data.mod)
-      call inelbk( matList )
-c
-c     allocate memory for history_blk_list and cep_blocks%vector
-c
-      allocate( history_blk_list(nelblk),stat=alloc_stat )
-      allocate( cep_blocks(nelblk), stat=alloc_stat )
 c
 c     form G_hat_4 matrix and store in Ghat4
 c
@@ -165,11 +158,16 @@ c
       real(8), parameter :: zero = 0.0D0, one = 1.0D0
       double precision :: gp_dtemps(mxvl), uddt(mxvl,nstr)
       integer :: alloc_stat
+      integer :: mat_type, iter
+      logical :: geo_non_flg
 c
 c     initialize local_work based on elblks(0,blk) and elblks(1,blk)
 c
       ngp = 1
       gpn = 1
+      iter = 1
+      mat_type = 1
+      geo_non_flg = .true.
       span = elblks(0, blk)
       felem = elblks(1, blk)
       local_work%blk = blk
@@ -178,10 +176,10 @@ c
       local_work%num_int_points = ngp
       local_work%gpn = gpn
       local_work%step = 3 ! current load step number
-      local_work%iter = 1 ! current (global) newton iteration number (>1)
-      local_work%geo_non_flg = .true.
+      local_work%iter = iter ! current (global) newton iteration number (>1)
+      local_work%geo_non_flg = geo_non_flg
       local_work%is_cohes_elem = .false.
-      local_work%mat_type = 1
+      local_work%mat_type = mat_type
       local_work%segmental = .false.
       local_work%number_points = 0
       local_work%curve_set_number = 0
@@ -202,9 +200,7 @@ c
       call mm01_set_sizes( info_vector )
       hist_size = info_vector(1)
       cep_size = info_vector(2)
-      history_blk_list(blk) = hist_size
       block_size = span * ngp * cep_size
-      allocate( cep_blocks(blk)%vector(block_size), stat = alloc_stat )
       local_work%hist_size_for_blk = hist_size
       call recstr_allocate( local_work )
       local_work%elem_type = 2 ! lsdisop element
@@ -222,6 +218,11 @@ c
 c     recover stress and stiffness
 c
       call rstgp1( local_work, uddt )
+c
+c     scatter local variables to global
+c
+      call rplstr( span, felem, ngp, mat_type, iter,
+     &             geo_non_flg, local_work, blk )
 c
 c     pull back to reference configuration
 c     sigma => P, dsigma/deps => dP/dF
@@ -345,7 +346,6 @@ c
         allocate ( Fn1(N3, ndim2), stat=iok )
         allocate ( Pn(N3, ndim2) )
         allocate ( Pn1(N3, ndim2) )
-        allocate ( matList(N3) )
         allocate ( DbarF(N3, ndim2) )
         allocate ( b(N3, ndim2) )
         allocate ( dFm(N3, ndim2) )
@@ -362,12 +362,18 @@ c     allocate internal variables
         allocate( tmpReal(N3, ndim2) )
         allocate( tmpCplx(N3, ndim2) )
 
+c     allocate global arrays in Warp3d
+        call history_cep_init()
+        call stresses_init()
+        call rotation_init()
+        call strains_init()
+c
       case( 2 )
 c
 c     deallocate variables in module
 c
         deallocate( Ghat4, K4, Fn, Fn1 )
-        deallocate( Pn, Pn1, DbarF, b, dFm, matList )
+        deallocate( Pn, Pn1, DbarF, b, dFm )
         deallocate( real1, cplx3half, cplx1half )
         deallocate( tmpPcg )
         deallocate( tmpReal, tmpCplx )
