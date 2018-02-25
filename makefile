@@ -8,12 +8,12 @@ FCCFLAG= -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lmkl_lapack95_lp64 -lio
 #                all compiled .mod and .o files
 #
 AllModule = main_data.mod fft.mod elem_block_data.mod mkl_dfti.mod mkl_dft_type.mod
-AllDotO = mod_main.o mod_fft.o mod_eleblocks.o mkl_dfti.o FFT_finite_3d.o rstgp1.o mm01.o recstr_allocate.o
+AllDotO = mod_main.o mod_fft.o mod_eleblocks.o mkl_dfti.o FFT_finite_3d.o rstgp1.o mm01.o recstr_allocate.o init.o
 #
 #                          link
 #
 FFT_finite_3d: $(AllDotO)
-	ifort -o FFT_finite_3d -O3 $(AllDotO) -I$(mklinc) -L$(mkllib) $(FCCFLAG) -g -traceback -gen-interfaces -warn interfaces -check -O0 -qopenmp
+	ifort -o FFT_finite_3d.exe -O3 $(AllDotO) -I$(mklinc) -L$(mkllib) $(FCCFLAG) -g -traceback -gen-interfaces -warn interfaces -check -O0 -qopenmp
 #
 #                        compile
 #
@@ -43,6 +43,8 @@ rstgp1.o: elem_block_data.mod mm01.o rstgp1.f
 	ifort -c rstgp1.f
 recstr_allocate.o: elem_block_data.mod mm01.o recstr_allocate.f
 	ifort -c recstr_allocate.f
+init.o: init.f
+	ifort -c init.f
 #
 #                        remove
 #
