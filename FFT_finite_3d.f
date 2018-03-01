@@ -49,8 +49,8 @@ c     initialize deformation gradient
       Fn = zero
       Fn(:,[1,5,9]) = one
       Fn1 = Fn
-      Pn = 0
-      Pn1 = 0
+      Pn = zero
+      Pn1 = zero
 c
 c     form G_hat_4 matrix and store in Ghat4
 c
@@ -104,10 +104,13 @@ c$OMP END PARALLEL DO
           iiter = iiter + 1
           
         enddo ! end N-R loop
-        
+c
+c            update state variables
         Fn = Fn1
         Pn = Pn1
-        
+c            update global variables in eleblocks
+      call update
+
       enddo ! end all steps
 c
 c     Ran check results
