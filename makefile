@@ -8,7 +8,7 @@ FCCFLAG= -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lmkl_lapack95_lp64 -lio
 #                all compiled .mod and .o files
 #
 AllModule = main_data.mod fft.mod elem_block_data.mod mkl_dfti.mod mkl_dft_type.mod
-AllDotO = mod_main.o mod_fft.o mod_eleblocks.o mkl_dfti.o FFT_finite_3d.o rstgp1.o mm01.o recstr_allocate.o init.o rplstr.o update.o
+AllDotO = mod_main.o mod_fft.o mod_eleblocks.o mkl_dfti.o FFT_finite_3d.o rstgp1.o mm01.o recstr_allocate.o init.o rplstr.o update.o polar.o qmply1.o dupstr.o
 #
 #                          link
 #
@@ -49,6 +49,12 @@ rplstr.o: elem_block_data.mod rplstr.f
 	ifort -c rplstr.f
 update.o: elem_block_data.mod update.f
 	ifort -c update.f
+polar.o: polar.f
+	ifort -c polar.f
+qmply1.o: qmply1.f
+	ifort -c qmply1.f
+dupstr.o: dupstr.f
+	ifort -c dupstr.f
 #
 #                        remove
 #

@@ -694,3 +694,230 @@ c
 c
       return
       end
+c
+c     ****************************************************************
+c     *                                                              *
+c     *                      subroutine getrm1                       *
+c     *                                                              *
+c     *                       written by : bh                        *
+c     *                                                              *
+c     *                   last modified : 08/23/12 rhd               *
+c     *                                                              *
+c     *     computes the rotation matrix taking one                  *
+c     *     tensor to its corresponding value obtained by adding or  *
+c     *     removing the material rotation, for a gauss point of an  *
+c     *     element in a block of similar solid elements             *
+c     *                                                              *
+c     ****************************************************************
+c
+c
+      subroutine getrm1( span, q, r, opt )
+      implicit none
+      include 'param_def'
+c
+c           parameter declarations
+c
+      integer :: span, opt
+      double precision :: q(mxvl,nstr,*), r(mxvl,ndim,*)
+     &  
+c
+c           locals
+c
+      integer :: i
+      double precision
+     & two, rbar(mxvl,3,3)
+      data two / 2.0d00 /
+c!DIR$ ASSUME_ALIGNED q:64, r:64, rbar:64
+c
+c           compute q. branch on quantity & direction of rotation.
+c
+      if ( opt .eq. 1 ) then
+c
+c      unrotated rate of deformation vector {d} = [q] *
+c       (rotated) rate of deformation vector {D}. in tensor form:
+c
+c                 [d] = trans([R]) [D] [R]
+c
+c       both [D] and [d] are symmetric, [R] is orthogonal rotation.
+c       vector forms for {d} and {D} use engineering shear strains.
+c       vector ordering is {x,y,z,xy,yz,xz}
+c
+
+!DIR$ LOOP COUNT MAX=128  
+!DIR$ VECTOR ALIGNED
+         do i = 1, span
+            q(i,1,1)= r(i,1,1)**2
+            q(i,1,2)= r(i,2,1)**2
+            q(i,1,3)= r(i,3,1)**2
+            q(i,1,4)= r(i,1,1)*r(i,2,1)
+            q(i,1,5)= r(i,3,1)*r(i,2,1)
+            q(i,1,6)= r(i,1,1)*r(i,3,1)
+            q(i,2,1)= r(i,1,2)**2
+            q(i,2,2)= r(i,2,2)**2
+            q(i,2,3)= r(i,3,2)**2
+            q(i,2,4)= r(i,1,2)*r(i,2,2)
+            q(i,2,5)= r(i,3,2)*r(i,2,2)
+            q(i,2,6)= r(i,1,2)*r(i,3,2)
+            q(i,3,1)= r(i,1,3)**2
+            q(i,3,2)= r(i,2,3)**2
+            q(i,3,3)= r(i,3,3)**2
+            q(i,3,4)= r(i,1,3)*r(i,2,3)
+            q(i,3,5)= r(i,3,3)*r(i,2,3)
+            q(i,3,6)= r(i,1,3)*r(i,3,3)
+            q(i,4,1)= two*r(i,1,1)*r(i,1,2)
+            q(i,4,2)= two*r(i,2,1)*r(i,2,2)
+            q(i,4,3)= two*r(i,3,1)*r(i,3,2)
+            q(i,4,4)= r(i,1,1)*r(i,2,2)+r(i,1,2)*r(i,2,1)
+            q(i,4,5)= r(i,2,1)*r(i,3,2)+r(i,3,1)*r(i,2,2)
+            q(i,4,6)= r(i,1,1)*r(i,3,2)+r(i,3,1)*r(i,1,2)
+            q(i,5,1)= two*r(i,1,2)*r(i,1,3)
+            q(i,5,2)= two*r(i,2,3)*r(i,2,2)
+            q(i,5,3)= two*r(i,3,2)*r(i,3,3)
+            q(i,5,4)= r(i,1,2)*r(i,2,3)+r(i,2,2)*r(i,1,3)
+            q(i,5,5)= r(i,2,2)*r(i,3,3)+r(i,2,3)*r(i,3,2)
+            q(i,5,6)= r(i,1,2)*r(i,3,3)+r(i,3,2)*r(i,1,3)
+            q(i,6,1)= two*r(i,1,1)*r(i,1,3)
+            q(i,6,2)= two*r(i,2,1)*r(i,2,3)
+            q(i,6,3)= two*r(i,3,1)*r(i,3,3)
+            q(i,6,4)= r(i,1,1)*r(i,2,3)+r(i,2,1)*r(i,1,3)
+            q(i,6,5)= r(i,2,1)*r(i,3,3)+r(i,3,1)*r(i,2,3)
+            q(i,6,6)= r(i,1,1)*r(i,3,3)+r(i,1,3)*r(i,3,1)
+        end do
+        return
+      end if
+c
+      if ( opt .eq. 2 ) then
+c
+c       cauchy stress {T} = [q] * (rotated) cauchy stress {t}.
+c       in tensor form:
+c
+c                 [T] = [R] [t] trans([R])
+c
+c       both [T] and [t] are symmetric, [R] is orthogonal rotation.
+c       vector ordering is {x,y,z,xy,yz,xz}. this [q] matrix
+c       is the transpose of the one above.
+c
+
+!DIR$ LOOP COUNT MAX=128  
+!DIR$ VECTOR ALIGNED
+         do i = 1, span
+            q(i,1,1)= r(i,1,1)**2
+            q(i,1,2)= r(i,1,2)**2
+            q(i,1,3)= r(i,1,3)**2
+            q(i,1,4)= two*r(i,1,1)*r(i,1,2)
+            q(i,1,5)= two*r(i,1,3)*r(i,1,2)
+            q(i,1,6)= two*r(i,1,1)*r(i,1,3)
+            q(i,2,1)= r(i,2,1)**2
+            q(i,2,2)= r(i,2,2)**2
+            q(i,2,3)= r(i,2,3)**2
+            q(i,2,4)= two*r(i,2,1)*r(i,2,2)
+            q(i,2,5)= two*r(i,2,3)*r(i,2,2)
+            q(i,2,6)= two*r(i,2,1)*r(i,2,3)
+            q(i,3,1)= r(i,3,1)**2
+            q(i,3,2)= r(i,3,2)**2
+            q(i,3,3)= r(i,3,3)**2
+            q(i,3,4)= two*r(i,3,1)*r(i,3,2)
+            q(i,3,5)= two*r(i,3,3)*r(i,3,2)
+            q(i,3,6)= two*r(i,3,1)*r(i,3,3)
+            q(i,4,1)= r(i,1,1)*r(i,2,1)
+            q(i,4,2)= r(i,1,2)*r(i,2,2)
+            q(i,4,3)= r(i,1,3)*r(i,2,3)
+            q(i,4,4)= r(i,1,1)*r(i,2,2)+r(i,2,1)*r(i,1,2)
+            q(i,4,5)= r(i,1,2)*r(i,2,3)+r(i,1,3)*r(i,2,2)
+            q(i,4,6)= r(i,1,1)*r(i,2,3)+r(i,1,3)*r(i,2,1)
+            q(i,5,1)= r(i,2,1)*r(i,3,1)
+            q(i,5,2)= r(i,3,2)*r(i,2,2)
+            q(i,5,3)= r(i,2,3)*r(i,3,3)
+            q(i,5,4)= r(i,2,1)*r(i,3,2)+r(i,2,2)*r(i,3,1)
+            q(i,5,5)= r(i,2,2)*r(i,3,3)+r(i,3,2)*r(i,2,3)
+            q(i,5,6)= r(i,2,1)*r(i,3,3)+r(i,2,3)*r(i,3,1)
+            q(i,6,1)= r(i,1,1)*r(i,3,1)
+            q(i,6,2)= r(i,1,2)*r(i,3,2)
+            q(i,6,3)= r(i,1,3)*r(i,3,3)
+            q(i,6,4)= r(i,1,1)*r(i,3,2)+r(i,1,2)*r(i,3,1)
+            q(i,6,5)= r(i,1,2)*r(i,3,3)+r(i,1,3)*r(i,3,2)
+            q(i,6,6)= r(i,1,1)*r(i,3,3)+r(i,3,1)*r(i,1,3)
+         end do
+         return
+      end if
+c
+c
+      if ( opt .eq. 3 ) then
+c
+c       unrotated cauchy stress {t} = [q] * cauchy stress {T}.
+c       in tensor form:
+c
+c                 [t] = trans([R]) [T] [R]
+c
+c       want to use code above for opt = 2. Set rbar = trans([R])
+c       and compute [q]. We are computing the
+c
+c       both [T] and [t] are symmetric, [R] is orthogonal rotation.
+c       vector ordering is {x,y,z,xy,yz,xz}. this [q] matrix
+c       is the transpose of the one above.
+c
+
+!DIR$ LOOP COUNT MAX=128  
+!DIR$ VECTOR ALIGNED
+         do i = 1, span
+          rbar(i,1,1) = r(i,1,1)
+          rbar(i,1,2) = r(i,2,1)
+          rbar(i,1,3) = r(i,3,1)
+          rbar(i,2,1) = r(i,1,2)
+          rbar(i,2,2) = r(i,2,2)
+          rbar(i,2,3) = r(i,3,2)
+          rbar(i,3,1) = r(i,1,3)
+          rbar(i,3,2) = r(i,2,3)
+          rbar(i,3,3) = r(i,3,3)
+         end do
+c
+
+!DIR$ LOOP COUNT MAX=128  
+!DIR$ VECTOR ALIGNED
+         do i = 1, span
+           q(i,1,1)= rbar(i,1,1)**2
+           q(i,1,2)= rbar(i,1,2)**2
+           q(i,1,3)= rbar(i,1,3)**2
+           q(i,1,4)= two*rbar(i,1,1)*rbar(i,1,2)
+           q(i,1,5)= two*rbar(i,1,3)*rbar(i,1,2)
+           q(i,1,6)= two*rbar(i,1,1)*rbar(i,1,3)
+           q(i,2,1)= rbar(i,2,1)**2
+           q(i,2,2)= rbar(i,2,2)**2
+           q(i,2,3)= rbar(i,2,3)**2
+           q(i,2,4)= two*rbar(i,2,1)*rbar(i,2,2)
+           q(i,2,5)= two*rbar(i,2,3)*rbar(i,2,2)
+           q(i,2,6)= two*rbar(i,2,1)*rbar(i,2,3)
+           q(i,3,1)= rbar(i,3,1)**2
+           q(i,3,2)= rbar(i,3,2)**2
+           q(i,3,3)= rbar(i,3,3)**2
+           q(i,3,4)= two*rbar(i,3,1)*rbar(i,3,2)
+           q(i,3,5)= two*rbar(i,3,3)*rbar(i,3,2)
+           q(i,3,6)= two*rbar(i,3,1)*rbar(i,3,3)
+           q(i,4,1)= rbar(i,1,1)*rbar(i,2,1)
+           q(i,4,2)= rbar(i,1,2)*rbar(i,2,2)
+           q(i,4,3)= rbar(i,1,3)*rbar(i,2,3)
+           q(i,4,4)= rbar(i,1,1)*rbar(i,2,2)+rbar(i,2,1)*rbar(i,1,2)
+           q(i,4,5)= rbar(i,1,2)*rbar(i,2,3)+rbar(i,1,3)*rbar(i,2,2)
+           q(i,4,6)= rbar(i,1,1)*rbar(i,2,3)+rbar(i,1,3)*rbar(i,2,1)
+           q(i,5,1)= rbar(i,2,1)*rbar(i,3,1)
+           q(i,5,2)= rbar(i,3,2)*rbar(i,2,2)
+           q(i,5,3)= rbar(i,2,3)*rbar(i,3,3)
+           q(i,5,4)= rbar(i,2,1)*rbar(i,3,2)+rbar(i,2,2)*rbar(i,3,1)
+           q(i,5,5)= rbar(i,2,2)*rbar(i,3,3)+rbar(i,3,2)*rbar(i,2,3)
+           q(i,5,6)= rbar(i,2,1)*rbar(i,3,3)+rbar(i,2,3)*rbar(i,3,1)
+           q(i,6,1)= rbar(i,1,1)*rbar(i,3,1)
+           q(i,6,2)= rbar(i,1,2)*rbar(i,3,2)
+           q(i,6,3)= rbar(i,1,3)*rbar(i,3,3)
+           q(i,6,4)= rbar(i,1,1)*rbar(i,3,2)+rbar(i,1,2)*rbar(i,3,1)
+           q(i,6,5)= rbar(i,1,2)*rbar(i,3,3)+rbar(i,1,3)*rbar(i,3,2)
+           q(i,6,6)= rbar(i,1,1)*rbar(i,3,3)+rbar(i,3,1)*rbar(i,1,3)
+         end do
+         return
+      end if
+
+      write(*,*) ' ** Fatal Error: call to getrm1 with opt /= 1,2,3'
+      write(*,*) '    is invalid. program terminated'
+      call die_abort
+      stop
+c
+      end

@@ -59,10 +59,10 @@ c
 c     NEWTON ITERATIONS
 c     loop over blocks to update stress and tangent stiffness matrix
 c$OMP PARALLEL DO PRIVATE( blk, now_thread )
-c$OMP&         SHARED( Fn1, matList, Pn1, K4, N3, nelblk )
+c$OMP&         SHARED( Fn1, matList, Pn1, K4, N3, nelblk, iiter, step )
       do blk = 1, nelblk
         now_thread = omp_get_thread_num() + 1
-        call do_nleps_block( blk )
+        call do_nleps_block( blk, iiter, step )
 c        call do_nleps_block( blk, iter, step, step_cut_flags(blk),
 c     &                       block_energies(blk),
 c     &                       block_plastic_work(blk) )
@@ -88,10 +88,10 @@ c     iterate as long as iterative update does not vanish
           call fftPcg(b, dFm, tolPCG, out) ! results stored in dFm in mod_fft
           Fn1 = Fn1 + dFm
 c$OMP PARALLEL DO PRIVATE( blk, now_thread )
-c$OMP&         SHARED( Fn1, matList, Pn1, K4, N3, nelblk )
+c$OMP&         SHARED( Fn1, matList, Pn1, K4, N3, nelblk, iiter, step )
           do blk = 1, nelblk
             now_thread = omp_get_thread_num() + 1
-            call do_nleps_block( blk )
+            call do_nleps_block( blk, iiter, step )
 c            call do_nleps_block( blk, iter, step, step_cut_flags(blk),
 c     &                           block_energies(blk),
 c     &                           block_plastic_work(blk) )
@@ -142,14 +142,14 @@ c     *                                                              *
 c     ****************************************************************
 c
 c
-      subroutine do_nleps_block( blk )
+      subroutine do_nleps_block( blk, iter, step )
       use fft, only: Fn1, Pn1, Fn, Pn, K4, matList
       use elem_block_data
       implicit none
       include 'common.main'
       include 'include_sig_up'
       
-      integer, intent(in) :: blk
+      integer, intent(in) :: blk, iter, step
 c
 c             locals
 c
@@ -158,17 +158,35 @@ c
       
       integer :: ngp, cep_size, block_size, gpn
       integer :: hist_size
-      real(8), parameter :: zero = 0.0D0, one = 1.0D0
-      double precision :: gp_dtemps(mxvl), uddt(mxvl,nstr)
+      real(8), parameter :: zero = 0.0D0, one = 1.0D0, half = 0.5D0
+      double precision :: gp_dtemps(mxvl)
       integer :: alloc_stat
-      integer :: mat_type, iter
+      integer :: mat_type
       logical :: geo_non_flg
+      real(8), allocatable, dimension(:,:,:) :: rnh, fnh, dfn, fnhinv
+      real(8), allocatable, dimension(:,:) :: ddt, uddt
+      real(8), allocatable, dimension(:,:,:) :: qnhalf, qn1
+c
+c             allocate and initialization
+      allocate( rnh(mxvl,ndim,ndim), fnh(mxvl,ndim,ndim), 
+     &          dfn(mxvl,ndim,ndim), fnhinv(mxvl,ndim,ndim) )
+c             warp3d original allocate and initialization
+c             nstr = 6; nstrs = 9;
+      allocate( ddt(mxvl,nstr), uddt(mxvl,nstr),
+     &          qnhalf(mxvl,nstr,nstr), qn1(mxvl,nstr,nstr) )
+!DIR$ VECTOR ALIGNED
+      ddt    = zero
+!DIR$ VECTOR ALIGNED
+      uddt   = zero
+!DIR$ VECTOR ALIGNED
+      qnhalf = zero
+!DIR$ VECTOR ALIGNED
+      qn1    = zero
 c
 c     initialize local_work based on elblks(0,blk) and elblks(1,blk)
 c
       ngp = 1
       gpn = 1
-      iter = 1
       mat_type = 1
       geo_non_flg = .true.
       span = elblks(0, blk)
@@ -178,7 +196,8 @@ c
       local_work%felem = felem
       local_work%num_int_points = ngp
       local_work%gpn = gpn
-      local_work%step = 3 ! current load step number
+c     local_work%step = 3 ! current load step number
+      local_work%step = step
       local_work%iter = iter ! current (global) newton iteration number (>1)
       local_work%geo_non_flg = geo_non_flg
       local_work%is_cohes_elem = .false.
@@ -209,14 +228,63 @@ c
       local_work%elem_type = 2 ! lsdisop element
 c
 c     grab material parameters, state variables and history
+c     due(nodal displacement from n to n+1)
+c     ue(nodal displacement from 0 to n)
+c     ce_0, cd_n, cd_mid, cd_n1: nodal coordinate
 c                 ***hard coded for now***
-c                original version: call dupstr_blocked
 c
       call mm01_hardCoded
+      call dupstr_blocked( blk, span, felem, mat_type, 
+     & geo_non_flg, step, iter, local_work )
 c
-c     compute uddt as function of F_n and F_n+1
+c                grab global Fn and Fn1 to local_work
 c
-      ! do nothing for now
+!DIR$ LOOP COUNT MAX=128
+!DIR$ VECTOR ALIGNED
+      do ii = 1, span
+        local_work%fn(ii,1,1) = Fn(ii,1)
+        local_work%fn(ii,1,2) = Fn(ii,2)
+        local_work%fn(ii,1,3) = Fn(ii,3)
+        local_work%fn(ii,2,1) = Fn(ii,4)
+        local_work%fn(ii,2,2) = Fn(ii,5)
+        local_work%fn(ii,2,3) = Fn(ii,6)
+        local_work%fn(ii,3,1) = Fn(ii,7)
+        local_work%fn(ii,3,2) = Fn(ii,8)
+        local_work%fn(ii,3,3) = Fn(ii,9)
+      end do
+!DIR$ LOOP COUNT MAX=128
+!DIR$ VECTOR ALIGNED
+      do ii = 1, span
+        local_work%fn1(ii,1,1) = Fn1(ii,1)
+        local_work%fn1(ii,1,2) = Fn1(ii,2)
+        local_work%fn1(ii,1,3) = Fn1(ii,3)
+        local_work%fn1(ii,2,1) = Fn1(ii,4)
+        local_work%fn1(ii,2,2) = Fn1(ii,5)
+        local_work%fn1(ii,2,3) = Fn1(ii,6)
+        local_work%fn1(ii,3,1) = Fn1(ii,7)
+        local_work%fn1(ii,3,2) = Fn1(ii,8)
+        local_work%fn1(ii,3,3) = Fn1(ii,9)
+      end do
+      fnh = half * ( local_work%fn + local_work%fn1 )
+      dfn = local_work%fn1 - local_work%fn
+c
+c              compute rotation tensor
+c
+      call rtcmp1( span, fnh, rnh )
+      call rtcmp1( span, local_work%fn1,
+     &             local_work%rot_blk_n1(1,1,gpn) )
+c
+c              compute ddt
+c
+      call inv33( span, felem, fnh, fnhinv )
+      call mul33( span, felem, dfn, fnhinv, ddt )
+c
+c              compute uddt
+c
+      call getrm1( span, qnhalf, rnh, 1 ) ! form qnhalf
+      call qmply1( span, mxvl, nstr, qnhalf, ddt, uddt )
+      call rstgp1_update_strains( span, mxvl, nstr, uddt,
+     &                            local_work%ddtse(1,1,gpn) )
 c
 c     recover stress and stiffness
 c
@@ -244,6 +312,8 @@ c
      &                     Pn1(currElem,:), K4(currElem,:))
       enddo
 c
+      deallocate( rnh, fnh, dfn, fnhinv )
+      deallocate( ddt, uddt, qnhalf, qn1 )
       call recstr_deallocate( local_work )
       contains
 c     ========
@@ -260,22 +330,22 @@ c     ****************************************************************
 c
 c
       subroutine mm01_hardCoded
-      implicit none                        
+      implicit none 
 c
 c                hard code uddt, uncs and gp_dtemps
 c
-      do ii = 1, span
-        local_work%urcs_blk_n(ii,:,gpn) = 
-     &            [63.369052D0,      -1.571854D-003, -1.571854D-003,
-     &             -7.384044D-005,  9.452432D-006, -7.384048D-005,
-     &              0.615002D0,       0.548073D0,       1.112306D-002]
-        uddt(ii,:) = 
-     &            [6.452949D-003, -1.940361D-003, -1.940361D-003,
-     &             5.700588D-006,  2.689669D-007,  5.700588D-006]
-      enddo
+c     do ii = 1, span
+c       local_work%urcs_blk_n(ii,:,gpn) = 
+c    &            [63.369052D0,      -1.571854D-003, -1.571854D-003,
+c    &             -7.384044D-005,  9.452432D-006, -7.384048D-005,
+c    &              0.615002D0,       0.548073D0,       1.112306D-002]
+c       uddt(ii,:) = 
+c    &            [6.452949D-003, -1.940361D-003, -1.940361D-003,
+c    &             5.700588D-006,  2.689669D-007,  5.700588D-006]
+c     enddo
       
       gp_dtemps = zero ! temperature change over step
-      local_work%urcs_blk_n1(1,1,gpn) = zero ! cartesian stress for step n+1
+c     local_work%urcs_blk_n1(1,1,gpn) = zero ! cartesian stress for step n+1
       
       ! material parameters
       local_work%e_vec = 30000.0D0 ! young's modulus in the block
@@ -285,18 +355,18 @@ c
       local_work%sigyld_vec = 60.0D0 ! uniaxial yield stress
       
       ! all 11 history variables
-      local_work%elem_hist(:,1,:) = 7.9899D-3 ! lamda * dt @ n
-      local_work%elem_hist(:,1,:) = 7.9868D-003
-      local_work%elem_hist(:,2,:) = 36.587D0
-      local_work%elem_hist(:,3,:) = 1.1123D-002
-      local_work%elem_hist(:,4,:) = 8.4488D-004
-      local_work%elem_hist(:,5,:) = 303.03D0
-      local_work%elem_hist(:,6,:) = zero
-      local_work%elem_hist(:,7,:) = zero
-      local_work%elem_hist(:,8,:) = zero
-      local_work%elem_hist(:,9,:) = zero
-      local_work%elem_hist(:,10,:) = zero
-      local_work%elem_hist(:,11,:) = zero
+c     local_work%elem_hist(:,1,:) = 7.9899D-3 ! lamda * dt @ n
+c     local_work%elem_hist(:,1,:) = 7.9868D-003
+c     local_work%elem_hist(:,2,:) = 36.587D0
+c     local_work%elem_hist(:,3,:) = 1.1123D-002
+c     local_work%elem_hist(:,4,:) = 8.4488D-004
+c     local_work%elem_hist(:,5,:) = 303.03D0
+c     local_work%elem_hist(:,6,:) = zero
+c     local_work%elem_hist(:,7,:) = zero
+c     local_work%elem_hist(:,8,:) = zero
+c     local_work%elem_hist(:,9,:) = zero
+c     local_work%elem_hist(:,10,:) = zero
+c     local_work%elem_hist(:,11,:) = zero
       local_work%rtse(1,1,gpn) = zero ! "relative" trial elastic stress rate
       local_work%e_vec_n = 30000.0D0 ! young's modulus at step n
       local_work%nu_vec_n = 0.3D0 ! poisson's ratio at step n
@@ -380,7 +450,7 @@ c
         deallocate( real1, cplx3half, cplx1half )
         deallocate( tmpPcg )
         deallocate( tmpReal, tmpCplx )
-        deallocate(history_blk_list)
+        deallocate( history_blk_list )
         do blk = 1, nelblk
           deallocate( cep_blocks(blk)%vector )
         end do
@@ -1131,3 +1201,171 @@ c     A4_ijkl * B4_lkmn = C4_ijmn
         enddo
       enddo
       end subroutine
+c     ****************************************************************
+c     *                                                              *
+c     *                      subroutine inv33                        *
+c     *                                                              *
+c     *                       written by : RM                        *
+c     *                                                              *
+c     *                                                              *
+c     *                compute inverse matrice of                    *
+c     *                   en element block                           *
+c     *                                                              *
+c     ****************************************************************
+c
+c
+      subroutine inv33( span, felem, jac, gama )
+      implicit none
+c
+      include 'param_def'
+c                   parameters
+c
+      double precision ::
+     &  jac(mxvl,3,3), gama(mxvl,3,3)
+      integer :: span, felem
+c
+c                   local work arrays (on stack)
+c
+      integer :: i, row, col
+      logical :: local_debug
+      double precision ::
+     &   j1(mxvl), j2(mxvl), j3(mxvl)
+c
+      double precision :: dj(mxvl) 
+c
+      double precision ::
+     &       zero, zero_check, one, half
+c
+c                 hard coded material parameters
+c
+      integer :: gpn
+c
+      data zero, zero_check, one, half, local_debug
+     &    / 0.0d0,    1.0d-20, 1.0d0,  0.5d0, .false. /
+!DIR$ VECTOR ALIGNED
+      gama = zero
+c
+c           calculate the determinate of the jacobian matrix
+c
+      gpn = 1
+!DIR$ LOOP COUNT MAX=128  
+!DIR$ VECTOR ALIGNED
+      do i = 1, span
+          j1(i)= jac(i,2,2)*jac(i,3,3)-jac(i,2,3)*jac(i,3,2)
+          j2(i)= jac(i,2,1)*jac(i,3,3)-jac(i,2,3)*jac(i,3,1)
+          j3(i)= jac(i,2,1)*jac(i,3,2)-jac(i,2,2)*jac(i,3,1)
+          dj(i)= jac(i,1,1)*j1(i)-jac(i,1,2)*j2(i)+jac(i,1,3)*j3(i)
+      end do
+c
+c           check to insure a positive determinate.
+c
+!DIR$ LOOP COUNT MAX=128  
+!DIR$ IVDEP
+      do i = 1, span
+       if( dj(i) .le. zero_check ) then
+         write(*,9169) gpn,felem+i-1, dj(i)
+       end if
+      end do
+c
+c           calculate the inverse of the jacobian matrix
+c
+!DIR$ LOOP COUNT MAX=128  
+!DIR$ VECTOR ALIGNED
+      do i = 1, span
+         gama(i,1,1)=  j1(i)/dj(i)
+         gama(i,2,1)= -j2(i)/dj(i)
+         gama(i,3,1)=  j3(i)/dj(i)
+         gama(i,1,2)= (jac(i,3,2)*jac(i,1,3)-
+     &                 jac(i,1,2)*jac(i,3,3))/dj(i)
+         gama(i,2,2)= (jac(i,1,1)*jac(i,3,3)-
+     &                 jac(i,3,1)*jac(i,1,3))/dj(i)
+         gama(i,3,2)= (jac(i,1,2)*jac(i,3,1)-
+     &                 jac(i,1,1)*jac(i,3,2))/dj(i)
+         gama(i,1,3)= (jac(i,1,2)*jac(i,2,3)-
+     &                 jac(i,1,3)*jac(i,2,2))/dj(i)
+         gama(i,2,3)= (jac(i,1,3)*jac(i,2,1)-
+     &                 jac(i,1,1)*jac(i,2,3))/dj(i)
+         gama(i,3,3)= (jac(i,1,1)*jac(i,2,2)-
+     &                 jac(i,1,2)*jac(i,2,1))/dj(i)
+      end do
+c
+      if ( local_debug ) then
+        do i=1, span
+          write(*,*)'       Jacobian matrix, elem #',i
+          do row=1,3
+            write(*,9000)(jac(i,row,col),col=1,3)
+          end do
+          write(*,*)'       determinant of the Jacobian matrix =',dj(i)
+          write(*,*)'       inverse Jacobian matrix'
+          do row=1,3
+            write(*,9000)(gama(i,row,col),col=1,3)
+          end do
+        end do
+      end if
+c
+      return
+c
+ 9000 format(3x,3f10.5)
+ 9900 format(I10,3F10.4)
+ 9169 format(/1x,'>>>>> warning: the determinant of the jacobian',
+     &           ' matrix for gauss point ',i6,/7x,'of element ',
+     &           i6,' is non-positive. current value: ',e12.5,/)
+c
+      end
+
+c              subroutine to compute C = A * B
+      subroutine mul33( span, felem, AA, BB, CC )
+      implicit none
+c
+      include 'common.main'
+
+c              global variables
+      integer, intent(in)  :: span, felem
+      real(8), intent(in)  :: AA(mxvl,ndim,ndim), BB(mxvl,ndim,ndim)
+      real(8), intent(out) :: CC(mxvl,nstr) ! voigt notation
+c
+c              local variables
+      integer :: i
+      logical :: local_debug
+
+      local_debug = .false.
+c
+c          calculate matrix multiplication 
+c          AA and BB: full matrix
+c          CC: xx, yy, zz, xy, yz, xz
+c
+!DIR$ LOOP COUNT MAX=128  
+!DIR$ VECTOR ALIGNED
+      do i = 1, span
+      CC(i,1) = AA(i,1,1)*BB(i,1,1) + AA(i,1,2)*BB(i,2,1)
+     &         + AA(i,1,3)*BB(i,3,1) ! xx
+      CC(i,4) = 2 * ( AA(i,2,1)*BB(i,1,1) + AA(i,2,2)*BB(i,2,1)
+     &         + AA(i,2,3)*BB(i,3,1) ) ! yx
+      CC(i,6) = 2 * ( AA(i,3,1)*BB(i,1,1) + AA(i,3,2)*BB(i,2,1)
+     &         + AA(i,3,3)*BB(i,3,1) ) ! zx
+c     CC(i,1,2) = AA(i,1,1)*BB(i,1,2) + AA(i,1,2)*BB(i,2,2)
+c    &         + AA(i,1,3)*BB(i,3,2) ! xy
+      CC(i,2) = AA(i,2,1)*BB(i,1,2) + AA(i,2,2)*BB(i,2,2)
+     &         + AA(i,2,3)*BB(i,3,2) ! yy
+      CC(i,5) = 2 * ( AA(i,3,1)*BB(i,1,2) + AA(i,3,2)*BB(i,2,2)
+     &         + AA(i,3,3)*BB(i,3,2) ) ! zy
+c     CC(i,1,3) = AA(i,1,1)*BB(i,1,3) + AA(i,1,2)*BB(i,2,3)
+c    &         + AA(i,1,3)*BB(i,3,3) ! xz
+c     CC(i,2,3) = AA(i,2,1)*BB(i,1,3) + AA(i,2,2)*BB(i,2,3)
+c    &         + AA(i,2,3)*BB(i,3,3) ! yz
+      CC(i,3) = AA(i,3,1)*BB(i,1,3) + AA(i,3,2)*BB(i,2,3)
+     &         + AA(i,3,3)*BB(i,3,3) ! zz
+      end do
+
+      if ( local_debug ) then
+        write(out,9000)
+        write(out,9001), AA(1,:,:)
+        write(out,9001), BB(1,:,:)
+        write(out,9002), CC(1,:)
+      end if
+c
+ 9000 format(3x,'Now checking matrix multiplication')
+ 9001 format(9e10.3)
+ 9002 format(6e10.3) 
+c
+      end subroutine 
