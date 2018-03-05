@@ -30,3 +30,6 @@
 *.exe
 *.out
 *.app
+
+# temporary files from VIM
+*.swp
