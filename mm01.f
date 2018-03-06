@@ -166,18 +166,18 @@ c                       isothermal update procedure. these update
 c                       routines use their own loops over span and skip
 c                       linear elastic elements 
 c         
-c      if ( isothermal ) then
-c           call mm01_simple1( span, mxvl, history, history1,
-c     &                        kbar, mrts, shear_mod_n1,
-c     &                        hprime_n1, beta, rtse, devstr_n1,
-c     &                        yield, local_debug )
-c      else
+      if ( isothermal ) then
+           call mm01_simple1( span, mxvl, history, history1,
+     &                        kbar, mrts, shear_mod_n1,
+     &                        hprime_n1, beta, rtse, devstr_n1,
+     &                        yield, local_debug )
+      else
           call mm01_general( span, mxvl, history, history1,
      &                       kbar, mrts, shear_mod_n1,
      &                       hprime_n1, beta, rtse, devstr_n1,
      &                       yield, lk, local_debug, dtemps,
      &                       local_out )
-c      end if
+      end if
 c
 c                       update elements that are linear elastic at this
 c                       point. note: we save the updated yield

@@ -155,6 +155,7 @@ c             locals
 c
       integer :: ii, span, felem, currElem
       integer :: info_vector(4)
+      logical :: local_debug
       
       integer :: ngp, cep_size, block_size, gpn
       integer :: hist_size
@@ -164,6 +165,7 @@ c
       integer :: mat_type
       logical :: geo_non_flg
       real(8), allocatable, dimension(:,:,:) :: rnh, fnh, dfn, fnhinv
+      real(8), allocatable, dimension(:) :: detF
       real(8), allocatable, dimension(:,:) :: ddt, uddt
       real(8), allocatable, dimension(:,:,:) :: qnhalf, qn1
       real(8), allocatable, dimension(:,:) :: P_ref, cep_ref
@@ -172,6 +174,7 @@ c             cauchu stress and rotation matrix @ n+1
       real(8) :: qtn1(mxvl,nstr,nstr), cs_blk_n1(mxvl,nstr)
 
 c             allocate and initialization
+      allocate( detF(mxvl) )
       allocate( rnh(mxvl,ndim,ndim), fnh(mxvl,ndim,ndim), 
      &          dfn(mxvl,ndim,ndim), fnhinv(mxvl,ndim,ndim) )
 c             warp3d original allocate and initialization
@@ -179,6 +182,8 @@ c             nstr = 6; nstrs = 9;
       allocate( ddt(mxvl,nstr), uddt(mxvl,nstr),
      &          qnhalf(mxvl,nstr,nstr), qn1(mxvl,nstr,nstr) )
       allocate( P_ref(mxvl,nstrs), cep_ref(mxvl,nstrs*nstrs) )
+      
+      local_debug = .true.
 !DIR$ VECTOR ALIGNED
       ddt    = zero
 !DIR$ VECTOR ALIGNED
@@ -187,6 +192,20 @@ c             nstr = 6; nstrs = 9;
       qnhalf = zero
 !DIR$ VECTOR ALIGNED
       qn1    = zero
+!DIR$ VECTOR ALIGNED
+      detF   = zero
+!DIR$ VECTOR ALIGNED
+      rnh    = zero
+!DIR$ VECTOR ALIGNED
+      fnh    = zero
+!DIR$ VECTOR ALIGNED
+      dfn    = zero
+!DIR$ VECTOR ALIGNED
+      fnhinv = zero
+!DIR$ VECTOR ALIGNED
+      P_ref  = zero
+!DIR$ VECTOR ALIGNED
+      cep_ref= zero
 c
 c     initialize local_work based on elblks(0,blk) and elblks(1,blk)
 c
@@ -278,9 +297,9 @@ c
       call rtcmp1( span, local_work%fn1,
      &             local_work%rot_blk_n1(1,1,gpn) )
 c
-c              compute ddt
+c              compute ddt( detF is a dummy argument )
 c
-      call inv33( span, felem, fnh, fnhinv )
+      call inv33( span, felem, fnh, fnhinv, detF )
       call mul33( span, felem, dfn, fnhinv, ddt )
 c
 c              compute uddt
@@ -293,6 +312,8 @@ c
 c     recover stress and stiffness
 c
       call rstgp1( local_work, uddt )
+      if(local_debug) write(out,*) uddt(:,1)
+c @@@@@@@@@@@@@@@@fatal error, not stable?@@@@@@@@@@@@@@@@@@@@@@
 c
 c     scatter local variables to global
 c
@@ -307,6 +328,8 @@ c
      &             cs_blk_n1 )
 c     pull back cs_blk_n1(Cauchy stress) to 1st PK stress
 c     P = J*sigma*F^{-T}
+      call inv33( span, felem, fnh, fnhinv, detF )
+      call mul33( span, felem, dfn, fnhinv, ddt )
 
 c     pull back cep_blocks to dP/dF
 c     cep_blocks in elem_block_data.mod
@@ -1228,7 +1251,7 @@ c     *                                                              *
 c     ****************************************************************
 c
 c
-      subroutine inv33( span, felem, jac, gama )
+      subroutine inv33( span, felem, jac, gama, dj )
       implicit none
 c
       include 'param_def'
@@ -1238,14 +1261,14 @@ c
      &  jac(mxvl,3,3), gama(mxvl,3,3)
       integer :: span, felem
 c
+      double precision :: dj(mxvl) 
+c
 c                   local work arrays (on stack)
 c
       integer :: i, row, col
       logical :: local_debug
       double precision ::
      &   j1(mxvl), j2(mxvl), j3(mxvl)
-c
-      double precision :: dj(mxvl) 
 c
       double precision ::
      &       zero, zero_check, one, half
