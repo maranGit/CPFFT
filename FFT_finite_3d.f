@@ -166,7 +166,11 @@ c
       real(8), allocatable, dimension(:,:,:) :: rnh, fnh, dfn, fnhinv
       real(8), allocatable, dimension(:,:) :: ddt, uddt
       real(8), allocatable, dimension(:,:,:) :: qnhalf, qn1
+      real(8), allocatable, dimension(:,:) :: P_ref, cep_ref
 c
+c             cauchu stress and rotation matrix @ n+1
+      real(8) :: qtn1(mxvl,nstr,nstr), cs_blk_n1(mxvl,nstr)
+
 c             allocate and initialization
       allocate( rnh(mxvl,ndim,ndim), fnh(mxvl,ndim,ndim), 
      &          dfn(mxvl,ndim,ndim), fnhinv(mxvl,ndim,ndim) )
@@ -174,6 +178,7 @@ c             warp3d original allocate and initialization
 c             nstr = 6; nstrs = 9;
       allocate( ddt(mxvl,nstr), uddt(mxvl,nstr),
      &          qnhalf(mxvl,nstr,nstr), qn1(mxvl,nstr,nstr) )
+      allocate( P_ref(mxvl,nstrs), cep_ref(mxvl,nstrs*nstrs) )
 !DIR$ VECTOR ALIGNED
       ddt    = zero
 !DIR$ VECTOR ALIGNED
@@ -196,9 +201,8 @@ c
       local_work%felem = felem
       local_work%num_int_points = ngp
       local_work%gpn = gpn
-c     local_work%step = 3 ! current load step number
       local_work%step = step
-      local_work%iter = iter ! current (global) newton iteration number (>1)
+      local_work%iter = iter ! global newton iteration (>1)
       local_work%geo_non_flg = geo_non_flg
       local_work%is_cohes_elem = .false.
       local_work%mat_type = mat_type
@@ -294,9 +298,18 @@ c     scatter local variables to global
 c
       call rplstr( span, felem, ngp, mat_type, iter,
      &             geo_non_flg, local_work, blk )
+
+c     compute cs_blk_n1(Cauchy stress) from urcs_blk_n1
 c
-c     pull back to reference configuration
-c     sigma => P, dsigma/deps => dP/dF
+      call getrm1( span, qtn1, local_work%rot_blk_n1(1,1,gpn), 2 )
+      call qmply1( span, mxvl, nstr, qtn1,
+     &             local_work%urcs_blk_n1(1,1,gpn),
+     &             cs_blk_n1 )
+c     pull back cs_blk_n1(Cauchy stress) to 1st PK stress
+c     P = J*sigma*F^{-T}
+
+c     pull back cep_blocks to dP/dF
+c     cep_blocks in elem_block_data.mod
 c
       ! do nothing for now
 c
@@ -314,6 +327,7 @@ c
 c
       deallocate( rnh, fnh, dfn, fnhinv )
       deallocate( ddt, uddt, qnhalf, qn1 )
+      deallocate( P_ref, cep_ref )
       call recstr_deallocate( local_work )
       contains
 c     ========
