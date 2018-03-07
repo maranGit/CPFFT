@@ -183,7 +183,7 @@ c             nstr = 6; nstrs = 9;
      &          qnhalf(mxvl,nstr,nstr), qn1(mxvl,nstr,nstr) )
       allocate( P_ref(mxvl,nstrs), cep_ref(mxvl,nstrs*nstrs) )
       
-      local_debug = .true.
+      local_debug = .false.
 !DIR$ VECTOR ALIGNED
       ddt    = zero
 !DIR$ VECTOR ALIGNED
@@ -256,7 +256,7 @@ c     ue(nodal displacement from 0 to n)
 c     ce_0, cd_n, cd_mid, cd_n1: nodal coordinate
 c                 ***hard coded for now***
 c
-      call mm01_hardCoded
+      call mm01_hardCoded ! only parameters and temperature
       call dupstr_blocked( blk, span, felem, mat_type, 
      & geo_non_flg, step, iter, local_work )
 c
@@ -313,7 +313,6 @@ c     recover stress and stiffness
 c
       call rstgp1( local_work, uddt )
       if(local_debug) write(out,*) uddt(:,1)
-c @@@@@@@@@@@@@@@@fatal error, not stable?@@@@@@@@@@@@@@@@@@@@@@
 c
 c     scatter local variables to global
 c
@@ -1375,23 +1374,26 @@ c
 !DIR$ VECTOR ALIGNED
       do i = 1, span
       CC(i,1) = AA(i,1,1)*BB(i,1,1) + AA(i,1,2)*BB(i,2,1)
-     &         + AA(i,1,3)*BB(i,3,1) ! xx
-      CC(i,4) = 2 * ( AA(i,2,1)*BB(i,1,1) + AA(i,2,2)*BB(i,2,1)
-     &         + AA(i,2,3)*BB(i,3,1) ) ! yx
-      CC(i,6) = 2 * ( AA(i,3,1)*BB(i,1,1) + AA(i,3,2)*BB(i,2,1)
-     &         + AA(i,3,3)*BB(i,3,1) ) ! zx
+     &        + AA(i,1,3)*BB(i,3,1) ! xx
+      CC(i,4) = AA(i,2,1)*BB(i,1,1) + AA(i,2,2)*BB(i,2,1)
+     &        + AA(i,2,3)*BB(i,3,1) + AA(i,1,1)*BB(i,1,2)
+     &        + AA(i,1,2)*BB(i,2,2) + AA(i,1,3)*BB(i,3,2) ! yx
+      CC(i,6) = AA(i,3,1)*BB(i,1,1) + AA(i,3,2)*BB(i,2,1)
+     &        + AA(i,3,3)*BB(i,3,1) + AA(i,1,1)*BB(i,1,3)
+     &        + AA(i,1,2)*BB(i,2,3) + AA(i,1,3)*BB(i,3,3) ! zx
 c     CC(i,1,2) = AA(i,1,1)*BB(i,1,2) + AA(i,1,2)*BB(i,2,2)
 c    &         + AA(i,1,3)*BB(i,3,2) ! xy
       CC(i,2) = AA(i,2,1)*BB(i,1,2) + AA(i,2,2)*BB(i,2,2)
-     &         + AA(i,2,3)*BB(i,3,2) ! yy
-      CC(i,5) = 2 * ( AA(i,3,1)*BB(i,1,2) + AA(i,3,2)*BB(i,2,2)
-     &         + AA(i,3,3)*BB(i,3,2) ) ! zy
+     &        + AA(i,2,3)*BB(i,3,2) ! yy
+      CC(i,5) = AA(i,3,1)*BB(i,1,2) + AA(i,3,2)*BB(i,2,2)
+     &        + AA(i,3,3)*BB(i,3,2) + AA(i,2,1)*BB(i,1,3)
+     &        + AA(i,2,2)*BB(i,2,3) + AA(i,2,3)*BB(i,3,3) ! zy
 c     CC(i,1,3) = AA(i,1,1)*BB(i,1,3) + AA(i,1,2)*BB(i,2,3)
 c    &         + AA(i,1,3)*BB(i,3,3) ! xz
 c     CC(i,2,3) = AA(i,2,1)*BB(i,1,3) + AA(i,2,2)*BB(i,2,3)
 c    &         + AA(i,2,3)*BB(i,3,3) ! yz
       CC(i,3) = AA(i,3,1)*BB(i,1,3) + AA(i,3,2)*BB(i,2,3)
-     &         + AA(i,3,3)*BB(i,3,3) ! zz
+     &        + AA(i,3,3)*BB(i,3,3) ! zz
       end do
 
       if ( local_debug ) then
