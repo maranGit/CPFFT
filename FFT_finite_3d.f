@@ -25,6 +25,7 @@ c     problem size
       
 c     initialize parameters in common block
       step = 0
+      iiter = 0
       ndim2 = ndim1 * ndim1
       ndim3 = ndim2 * ndim1
       ndim4 = ndim3 * ndim1
@@ -165,25 +166,27 @@ c
       integer :: mat_type
       logical :: geo_non_flg
       real(8), allocatable, dimension(:,:,:) :: rnh, fnh, dfn, fnhinv
-      real(8), allocatable, dimension(:) :: detF
+      real(8), allocatable, dimension(:) :: detF 
+      real(8), allocatable, dimension(:,:,:) :: fn1inv
       real(8), allocatable, dimension(:,:) :: ddt, uddt
       real(8), allocatable, dimension(:,:,:) :: qnhalf, qn1
-      real(8), allocatable, dimension(:,:) :: P_ref, cep_ref
+      real(8), allocatable, dimension(:,:) :: P_blk_n1, cep_blk_n1
 c
 c             cauchu stress and rotation matrix @ n+1
       real(8) :: qtn1(mxvl,nstr,nstr), cs_blk_n1(mxvl,nstr)
 
 c             allocate and initialization
       allocate( detF(mxvl) )
+      allocate( fn1inv(mxvl,ndim,ndim) )
       allocate( rnh(mxvl,ndim,ndim), fnh(mxvl,ndim,ndim), 
      &          dfn(mxvl,ndim,ndim), fnhinv(mxvl,ndim,ndim) )
 c             warp3d original allocate and initialization
 c             nstr = 6; nstrs = 9;
       allocate( ddt(mxvl,nstr), uddt(mxvl,nstr),
      &          qnhalf(mxvl,nstr,nstr), qn1(mxvl,nstr,nstr) )
-      allocate( P_ref(mxvl,nstrs), cep_ref(mxvl,nstrs*nstrs) )
+      allocate( P_blk_n1(mxvl,nstrs), cep_blk_n1(mxvl,nstrs*nstrs) )
       
-      local_debug = .false.
+      local_debug = .true.
 !DIR$ VECTOR ALIGNED
       ddt    = zero
 !DIR$ VECTOR ALIGNED
@@ -203,9 +206,11 @@ c             nstr = 6; nstrs = 9;
 !DIR$ VECTOR ALIGNED
       fnhinv = zero
 !DIR$ VECTOR ALIGNED
-      P_ref  = zero
+      P_blk_n1 = zero
 !DIR$ VECTOR ALIGNED
-      cep_ref= zero
+      cep_blk_n1 = zero
+!DIR$ VECTOR ALIGNED
+      fn1inv = zero
 c
 c     initialize local_work based on elblks(0,blk) and elblks(1,blk)
 c
@@ -312,7 +317,9 @@ c
 c     recover stress and stiffness
 c
       call rstgp1( local_work, uddt )
-      if(local_debug) write(out,*) uddt(:,1)
+      if(local_debug .and. blk .eq. 1) then
+        write(out,*) "uddt of the 1st element is ", uddt(1,:)
+      endif
 c
 c     scatter local variables to global
 c
@@ -327,8 +334,13 @@ c
      &             cs_blk_n1 )
 c     pull back cs_blk_n1(Cauchy stress) to 1st PK stress
 c     P = J*sigma*F^{-T}
-      call inv33( span, felem, fnh, fnhinv, detF )
-      call mul33( span, felem, dfn, fnhinv, ddt )
+      call inv33( span, felem, local_work%fn1, fn1inv, detF )
+      call cs2p( span, felem, cs_blk_n1, fn1inv, detF, P_blk_n1 )
+      if(local_debug .and. blk .eq. 1) then
+        write(*,*) "current iteration: ", iter
+        write(*,*) "F of the 23th element: ", Fn1(1,:)
+        write(*,*) "detF of the 23th element is: ", detF(23)
+      end if
 
 c     pull back cep_blocks to dP/dF
 c     cep_blocks in elem_block_data.mod
@@ -347,10 +359,11 @@ c
      &                     Pn1(currElem,:), K4(currElem,:))
       enddo
 c
-      deallocate( rnh, fnh, dfn, fnhinv )
+      deallocate( rnh, fnh, dfn, fnhinv, fn1inv )
       deallocate( ddt, uddt, qnhalf, qn1 )
-      deallocate( P_ref, cep_ref )
+      deallocate( P_blk_n1, cep_blk_n1 )
       call recstr_deallocate( local_work )
+      return
       contains
 c     ========
 c
@@ -417,6 +430,7 @@ c     other properties required by drive_01_udate
       local_work%temperatures = 297.0D0
       local_work%temperatures_ref = 297.0D0
 
+      return
       end subroutine ! mm01_hardCoded
       end subroutine ! do_nleps_block
 c
@@ -496,6 +510,7 @@ c
         write(*,*) ">>Error: invalid option. Job terminated"
       end select
 
+      return
       end subroutine
 c
 c     ****************************************************************
@@ -668,6 +683,7 @@ c     allocate internal variables
 
 c     deallocate internal variables
       deallocate( q, q_dot_q )
+      return
       end subroutine
 c
 c     ****************************************************************
@@ -865,6 +881,7 @@ c     inverse fft
 c     return
       GKF = tmpReal
 
+      return
       end subroutine
 c
 c     ****************************************************************
@@ -926,6 +943,7 @@ c     loop over gauss point to update stress and consistent stiffness
       call ddot44( tmp1, I4rt, tmp2 )
       call dot24( S, I4, tmp1 )
       K4 = tmp1 + tmp2
+      return
       end subroutine ! consititutive
 c
 c     ****************************************************************
@@ -1009,6 +1027,7 @@ c     construct the whole matrix and perform fftshift
 c     deallocate local variables
       deallocate( ffts, iffts )
 
+      return
       end subroutine
 
 c
@@ -1090,6 +1109,7 @@ c     free descriptor
 c     deallocate local variables
       deallocate( ffts, iffts )
 
+      return
       end subroutine
 c
 c     ****************************************************************
@@ -1110,6 +1130,7 @@ c     B2_ji = A2_ij, n rows
       integer, intent(in) :: n
       real(8) :: A2( n, 9 )
       A2 = A2( :, [ 1, 4, 7, 2, 5, 8, 3, 6, 9 ] )
+      return
       end subroutine
 
       subroutine dot22(A2, B2, C2)
@@ -1126,6 +1147,7 @@ c     C2_ik = A2_ij * B2_jk
       C2(7) = A2(7) * B2(1) + A2(8) * B2(4) + A2(9) * B2(7)
       C2(8) = A2(7) * B2(2) + A2(8) * B2(5) + A2(9) * B2(8)
       C2(9) = A2(7) * B2(3) + A2(8) * B2(6) + A2(9) * B2(9)
+      return
       end subroutine
 
       subroutine dot24( A2, B4, C4 )
@@ -1142,6 +1164,7 @@ c     A2_ij * B4_jkmn = C4_ikmn
      &          + A2(ii * 3) * B4(jj + 54)
         enddo
       enddo
+      return
       end subroutine
 
       subroutine dot42( A4, B2, C4 )
@@ -1158,6 +1181,7 @@ c     A4_ijkl * B2_lm = C4_ijkm
      &            + A4(ii*3-1) * B2(jj+3) + A4(ii*3) * B2(jj+6)
         enddo
       enddo
+      return
       end subroutine
 
       subroutine ddot42( A4, B2, C2 )
@@ -1176,6 +1200,7 @@ c     A4_ijkl * B2_lk = C2_ij
           C2( ii ) = C2( ii ) + A4( p ) * B2( jj )
         enddo
       enddo
+      return
       end subroutine
 
       subroutine ddot42n(A4, B2, n)
@@ -1198,6 +1223,7 @@ c     A4_ijkl * B2_lk = C2_ij, n rows
 
       B2 = C2
 
+      return
       end subroutine
 
       subroutine ddot42n_cmplx(A4, B2, n)
@@ -1221,6 +1247,7 @@ c     A4 is real, B2 is complex, C2 is complex
 
       B2 = C2
 
+      return
       end subroutine
 
       subroutine ddot44(A4, B4, C4)
@@ -1236,6 +1263,7 @@ c     A4_ijkl * B4_lkmn = C4_ijmn
           C4(p) = dot_product( A4(tmp1 + ii*9-9), B4(tmp2 + jj) )
         enddo
       enddo
+      return
       end subroutine
 c     ****************************************************************
 c     *                                                              *
@@ -1402,9 +1430,70 @@ c    &         + AA(i,2,3)*BB(i,3,3) ! yz
         write(out,9001), BB(1,:,:)
         write(out,9002), CC(1,:)
       end if
+      return
 c
  9000 format(3x,'Now checking matrix multiplication')
  9001 format(9e10.3)
  9002 format(6e10.3) 
 c
       end subroutine 
+c     ****************************************************************
+c     *                                                              *
+c     *                      subroutine cs2p                         *
+c     *                                                              *
+c     *                       written by : RM                        *
+c     *                                                              *
+c     *                   last modified: 3/7/2018                    *
+c     *                                                              *
+c     *                pull back Cauchy stress to                    *
+c     *                      1st P-K stress                          *
+c     *                    P = J*sigma*F^{-T}                        *
+c     *                 P(11,12,13,21,22,23,31,32,33)                *
+c     *                                                              *
+c     ****************************************************************
+c
+      subroutine cs2p( span, felem, cs, finv, detF, P)
+      implicit none
+      include 'common.main'
+c                          global
+      integer :: span, felem
+      real(8) :: cs(mxvl,*), finv(mxvl,ndim,*), detF(*)
+      real(8) :: P(mxvl,*)
+c                          local
+      integer :: ii
+c     
+c                   cs_blk_n1 * transpose(fn1inv)
+c       voigt notation: 1-11, 2-22, 3-33, 4-12, 5-23, 6-13
+!DIR$ LOOP COUNT MAX=128
+!DIR$ VECTOR ALIGNED
+      do ii = 1, span
+        ! P11 = cs(11)*finv(11) + cs(12)*finv(12) + cs(13)*finv(13)
+        P(ii,1) = detF(ii) * ( cs(ii,1)*finv(ii,1,1) 
+     &          + cs(ii,4)*finv(ii,1,2) + cs(ii,6)*finv(ii,1,3) )
+        ! P12 = cs(11)*finv(21) + cs(12)*finv(22) + cs(13)*finv(23)
+        P(ii,2) = detF(ii) * ( cs(ii,1)*finv(ii,2,1) 
+     &          + cs(ii,4)*finv(ii,2,2) + cs(ii,6)*finv(ii,2,3) )
+        ! P13 = cs(11)*finv(31) + cs(12)*finv(32) + cs(13)*finv(33)
+        P(ii,3) = detF(ii) * ( cs(ii,1)*finv(ii,3,1) 
+     &          + cs(ii,4)*finv(ii,3,2) + cs(ii,6)*finv(ii,3,3) )
+        ! P21 = cs(21)*finv(11) + cs(22)*finv(12) + cs(23)*finv(13)
+        P(ii,4) = detF(ii) * ( cs(ii,4)*finv(ii,1,1) 
+     &          + cs(ii,2)*finv(ii,1,2) + cs(ii,5)*finv(ii,1,3) )
+        ! P22 = cs(21)*finv(21) + cs(22)*finv(22) + cs(23)*finv(23)
+        P(ii,5) = detF(ii) * ( cs(ii,4)*finv(ii,2,1) 
+     &          + cs(ii,2)*finv(ii,2,2) + cs(ii,5)*finv(ii,2,3) )
+        ! P23 = cs(21)*finv(31) + cs(22)*finv(32) + cs(23)*finv(33)
+        P(ii,6) = detF(ii) * ( cs(ii,4)*finv(ii,3,1) 
+     &          + cs(ii,2)*finv(ii,3,2) + cs(ii,5)*finv(ii,3,3) )
+        ! P31 = cs(31)*finv(11) + cs(32)*finv(12) + cs(33)*finv(13)
+        P(ii,7) = detF(ii) * ( cs(ii,6)*finv(ii,1,1) 
+     &          + cs(ii,5)*finv(ii,1,2) + cs(ii,3)*finv(ii,1,3) )
+        ! P32 = cs(31)*finv(21) + cs(32)*finv(22) + cs(33)*finv(23)
+        P(ii,8) = detF(ii) * ( cs(ii,6)*finv(ii,2,1) 
+     &          + cs(ii,5)*finv(ii,2,2) + cs(ii,3)*finv(ii,2,3) )
+        ! P33 = cs(31)*finv(31) + cs(32)*finv(32) + cs(33)*finv(33)
+        P(ii,7) = detF(ii) * ( cs(ii,6)*finv(ii,3,1) 
+     &          + cs(ii,5)*finv(ii,3,2) + cs(ii,3)*finv(ii,3,3) )
+      enddo
+      return
+      end subroutine
