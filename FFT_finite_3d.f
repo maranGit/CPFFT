@@ -18,7 +18,7 @@ c     temporary variables
       
 c     problem size
       ndim1 = 3 ! defined in param_def
-      N = 31
+      N = 11
       nstep = 1
       phase = 0
       phase(23:31, 1:9, 23:31) = 1
@@ -73,7 +73,7 @@ c$OMP END PARALLEL DO
       do step = 1, nstep
 c     macroscopic loading
         DbarF = zero
-        DbarF(:,2) = one
+        DbarF(:,2) = 0.01D0
         b = zero
 
 c     initial residual: distribute "barF" over grid using K4
@@ -156,7 +156,7 @@ c             locals
 c
       integer :: ii, span, felem, currElem
       integer :: info_vector(4)
-      logical :: local_debug
+      logical :: local_debug, include_qbar
       
       integer :: ngp, cep_size, block_size, gpn
       integer :: hist_size
@@ -169,8 +169,9 @@ c
       real(8), allocatable, dimension(:) :: detF 
       real(8), allocatable, dimension(:,:,:) :: fn1inv
       real(8), allocatable, dimension(:,:) :: ddt, uddt
-      real(8), allocatable, dimension(:,:,:) :: qnhalf, qn1
-      real(8), allocatable, dimension(:,:) :: P_blk_n1, cep_blk_n1
+      real(8), allocatable, dimension(:,:,:) :: qnhalf, qn1, cep_blk_n1
+      real(8), allocatable, dimension(:,:) :: P_blk_n1
+      real(8), allocatable, dimension(:,:) :: A_blk_n1
 c
 c             cauchu stress and rotation matrix @ n+1
       real(8) :: qtn1(mxvl,nstr,nstr), cs_blk_n1(mxvl,nstr)
@@ -184,9 +185,10 @@ c             warp3d original allocate and initialization
 c             nstr = 6; nstrs = 9;
       allocate( ddt(mxvl,nstr), uddt(mxvl,nstr),
      &          qnhalf(mxvl,nstr,nstr), qn1(mxvl,nstr,nstr) )
-      allocate( P_blk_n1(mxvl,nstrs), cep_blk_n1(mxvl,nstrs*nstrs) )
+      allocate( P_blk_n1(mxvl,nstrs), cep_blk_n1(mxvl,nstr,nstr) )
+      allocate( A_blk_n1(mxvl,nstrs*nstrs) )
       
-      local_debug = .true.
+      local_debug = .false.
 !DIR$ VECTOR ALIGNED
       ddt    = zero
 !DIR$ VECTOR ALIGNED
@@ -244,6 +246,10 @@ c
       local_work%material_cut_step = .false.
       local_work%adaptive_flag = .false.
       local_work%eps_bbar = 0
+      local_work%is_solid_matl = .true.
+      local_work%is_umat = .false.
+      local_work%umat_stress_type = 1
+      local_work%is_crys_pls = .false.
 c
 c     allocate memory for local_work according to material model
 c
@@ -332,6 +338,7 @@ c
       call qmply1( span, mxvl, nstr, qtn1,
      &             local_work%urcs_blk_n1(1,1,gpn),
      &             cs_blk_n1 )
+c
 c     pull back cs_blk_n1(Cauchy stress) to 1st PK stress
 c     P = J*sigma*F^{-T}
       call inv33( span, felem, local_work%fn1, fn1inv, detF )
@@ -341,27 +348,46 @@ c     P = J*sigma*F^{-T}
         write(*,*) "F of the 23th element: ", Fn1(1,:)
         write(*,*) "detF of the 23th element is: ", detF(23)
       end if
-
+c
+c         rotate from ( d_urcs / d_uddt ) to ( Green-Naghdi / D )
+c     (1) extract stiffness from mod_eleblocks
+c     (2) push forward to current configuration
+c     (3) store in cep_blk_n1(mxvl,nstr*nstr)
+c
+      if( geo_non_flg .and. local_work%is_solid_matl ) then
+        include_qbar = .false.
+        call ctran1( span, felem, blk, cep_blk_n1, qtn1, cs_blk_n1,
+     &               include_qbar, detF, local_work%weights,
+     &               local_work%is_umat, local_work%umat_stress_type,
+     &               local_work%is_crys_pls )
+      end if
+c
 c     pull back cep_blocks to dP/dF
-c     cep_blocks in elem_block_data.mod
+c     assume that Green-Naghdi rate is close to Lie derivative
+c     see Simo & Hughes, chapter 7
+c     input:  cep_blk_n1(mxvl,nstr*nstr)
+c     output: A_blk_n1(mxvl,nstrs*nstrs)
+      call cep2A( span, cs_blk_n1, cep_blk_n1, fn1inv, detF, A_blk_n1 )
 c
-      ! do nothing for now
-c
-c     update global stress and stiffness
-c
-      ! do nothing for now
+c     update global P and tangent stiffness
+      do ii = 1, span
+        currElem = felem + ii - 1
+        Pn1(currElem, :) = P_blk_n1(ii, :)
+        K4(currElem, :) = A_blk_n1(ii, :)
+      end do
 c
 c     get cut-step flag and update plastic work
 c
-      do ii = 1, span
-        currElem = felem + ii - 1
-        call constitutive(Fn1(currElem,:), matList(currElem), 
-     &                     Pn1(currElem,:), K4(currElem,:))
-      enddo
+c     do ii = 1, span
+c       currElem = felem + ii - 1
+c       call constitutive(Fn1(currElem,:), matList(currElem), 
+c    &                     Pn1(currElem,:), K4(currElem,:))
+c     enddo
 c
       deallocate( rnh, fnh, dfn, fnhinv, fn1inv )
       deallocate( ddt, uddt, qnhalf, qn1 )
       deallocate( P_blk_n1, cep_blk_n1 )
+      deallocate( A_blk_n1 )
       call recstr_deallocate( local_work )
       return
       contains
