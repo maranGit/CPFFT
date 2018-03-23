@@ -7,25 +7,27 @@
       logical debug
       
 c     temporary variables
-      integer :: blk, iiter, step, nstep
-      real(8) :: Fnorm, resfft
-      integer :: phase(31,31,31)
+      integer :: blk, iiter, step, nstep, maxIter, temp
+      real(8) :: Fnorm, resfft, straininc
+      integer :: phase(7,7,7)
       integer :: now_thread
       integer :: alloc_stat
       integer, external :: omp_get_thread_num
       real(8), parameter :: zero = 0.0D0, one = 1.0D0
-      real(8), parameter :: tolNR = 1.0D-5, tolPCG = 1.0D-8
+      real(8), parameter :: tolNR = 1.0D-5, tolPCG = 1.0D-10
       
 c     problem size
       ndim1 = 3 ! defined in param_def
-      N = 11
-      nstep = 1
+      N = 7
+      nstep = 2
       phase = 0
-      phase(23:31, 1:9, 23:31) = 1
+      phase(3:7, 1:4, 3:7) = 1
       
 c     initialize parameters in common block
-      step = 0
+      step = 1
       iiter = 0
+      maxIter = 5
+      straininc = 0.001D0
       ndim2 = ndim1 * ndim1
       ndim3 = ndim2 * ndim1
       ndim4 = ndim3 * ndim1
@@ -35,7 +37,8 @@ c     initialize parameters in common block
       if ( mod(N, 2) .eq. 0 ) Nhalf = N / 2 + 1
       veclen = N3 * 9
       dims = [N, N, N]
-      debug = .true.
+      debug = .false.
+      out = 11
       open(out, file = "RanOut.out")
 c
 c     autoblock for openmp, store in elblks (elem_block_data.mod)
@@ -52,6 +55,14 @@ c     initialize deformation gradient
       Fn1 = Fn
       Pn = zero
       Pn1 = zero
+      barF = zero
+      barF(:,1) = one
+      barF(:,5) = one
+      barF(:,9) = one
+      barF_t = zero
+      barF_t(:,1) = one
+      barF_t(:,5) = one
+      barF_t(:,9) = one
 c
 c     form G_hat_4 matrix and store in Ghat4
 c
@@ -59,8 +70,8 @@ c
 c
 c     NEWTON ITERATIONS
 c     loop over blocks to update stress and tangent stiffness matrix
-c$OMP PARALLEL DO PRIVATE( blk, now_thread )
-c$OMP&         SHARED( Fn1, matList, Pn1, K4, N3, nelblk, iiter, step )
+cc$OMP PARALLEL DO PRIVATE( blk, now_thread )
+cc$OMP&         SHARED( Fn1, matList, Pn1, K4, N3, nelblk, iiter, step )
       do blk = 1, nelblk
         now_thread = omp_get_thread_num() + 1
         call do_nleps_block( blk, iiter, step )
@@ -68,49 +79,67 @@ c        call do_nleps_block( blk, iter, step, step_cut_flags(blk),
 c     &                       block_energies(blk),
 c     &                       block_plastic_work(blk) )
       enddo
-c$OMP END PARALLEL DO
+cc$OMP END PARALLEL DO
       
       do step = 1, nstep
+
+        write(*,*) "Now starting step ",step
 c     macroscopic loading
-        DbarF = zero
-        DbarF(:,2) = 0.01D0
+        barF = zero
+        barF( :, 9 ) = one
+        barF( :, 1 ) = one + dble(step) * straininc;
+        barF( :, 5 ) = one / ( one + dble(step) * straininc) ;
+        DbarF = barF - barF_t
+
         b = zero
 
 c     initial residual: distribute "barF" over grid using K4
         call G_K_dF(DbarF, b, .true.)
         b = -b
+        if(debug.and.step.eq.2) then
+          write(*,*) "Now checking b in step 2: "
+          write(*,*) maxval(b)
+          write(*,*) minval(b)
+        endif
+
         Fn1 = Fn1 + DbarF
         Fnorm = sqrt(sum(Fn1*Fn1))
         resfft = Fnorm
         iiter = 0
 
 c     iterate as long as iterative update does not vanish
-        do while ( resfft/Fnorm .gt. tolNR )
+        do while ( .true. )
           call fftPcg(b, dFm, tolPCG, out) ! results stored in dFm in mod_fft
           Fn1 = Fn1 + dFm
-c$OMP PARALLEL DO PRIVATE( blk, now_thread )
-c$OMP&         SHARED( Fn1, matList, Pn1, K4, N3, nelblk, iiter, step )
-          do blk = 1, nelblk
-            now_thread = omp_get_thread_num() + 1
-            call do_nleps_block( blk, iiter, step )
-c            call do_nleps_block( blk, iter, step, step_cut_flags(blk),
-c     &                           block_energies(blk),
-c     &                           block_plastic_work(blk) )
-          enddo
-c$OMP END PARALLEL DO
+cc$OMP PARALLEL DO PRIVATE( blk, now_thread )
+cc$OMP&         SHARED( Fn1, matList, Pn1, K4, N3, nelblk, iiter, step )
+      do blk = 1, nelblk
+        now_thread = omp_get_thread_num() + 1
+        call do_nleps_block( blk, iiter, step )
+c        call do_nleps_block( blk, iter, step, step_cut_flags(blk),
+c     &                       block_energies(blk),
+c     &                       block_plastic_work(blk) )
+      enddo
+cc$OMP END PARALLEL DO
           call G_K_dF(Pn1, b, .false.)
           b = -b
           resfft = sqrt(sum(dFm*dFm))
           write(*,*) resfft/Fnorm
+          if ((resfft/Fnorm < tolNR) .and. (iiter > 0)) exit
+          if ( iiter .eq. maxIter ) then
+            write(out,9999)
+            call die_abort()
+          endif
           iiter = iiter + 1
           
         enddo ! end N-R loop
 c
 c            update state variables
         Fn = Fn1
+        barF_t = barF
         Pn = Pn1
 c            update global variables in eleblocks
-      call update
+        call update
 
       enddo ! end all steps
 c
@@ -130,6 +159,7 @@ c
       close(out)
       
  1001 format( 27f8.4 )
+ 9999 format(/,'>> Error: Newton loop does not converge.')
 c
       end program
 c     ****************************************************************
@@ -216,7 +246,7 @@ c             nstr = 6; nstrs = 9;
 c
 c     initialize local_work based on elblks(0,blk) and elblks(1,blk)
 c
-      ngp = 1
+      ngp = fftngp
       gpn = 1
       mat_type = 1
       geo_non_flg = .true.
@@ -245,7 +275,7 @@ c
       local_work%bbar_flg = .true.
       local_work%material_cut_step = .false.
       local_work%adaptive_flag = .false.
-      local_work%eps_bbar = 0
+      local_work%eps_bbar = zero
       local_work%is_solid_matl = .true.
       local_work%is_umat = .false.
       local_work%umat_stress_type = 1
@@ -267,8 +297,12 @@ c     ue(nodal displacement from 0 to n)
 c     ce_0, cd_n, cd_mid, cd_n1: nodal coordinate
 c                 ***hard coded for now***
 c
-      call mm01_hardCoded ! only parameters and temperature
-      call dupstr_blocked( blk, span, felem, mat_type, 
+c                hard code material parameters
+      call mm01_hardCoded
+c
+c                grab global variables to local_work
+c
+      call dupstr_blocked( blk, span, felem, ngp, mat_type, 
      & geo_non_flg, step, iter, local_work )
 c
 c                grab global Fn and Fn1 to local_work
@@ -276,31 +310,37 @@ c
 !DIR$ LOOP COUNT MAX=128
 !DIR$ VECTOR ALIGNED
       do ii = 1, span
-        local_work%fn(ii,1,1) = Fn(ii,1)
-        local_work%fn(ii,1,2) = Fn(ii,2)
-        local_work%fn(ii,1,3) = Fn(ii,3)
-        local_work%fn(ii,2,1) = Fn(ii,4)
-        local_work%fn(ii,2,2) = Fn(ii,5)
-        local_work%fn(ii,2,3) = Fn(ii,6)
-        local_work%fn(ii,3,1) = Fn(ii,7)
-        local_work%fn(ii,3,2) = Fn(ii,8)
-        local_work%fn(ii,3,3) = Fn(ii,9)
+        currElem = felem + ii - 1
+        local_work%fn(ii,1,1) = Fn(currElem,1)
+        local_work%fn(ii,1,2) = Fn(currElem,2)
+        local_work%fn(ii,1,3) = Fn(currElem,3)
+        local_work%fn(ii,2,1) = Fn(currElem,4)
+        local_work%fn(ii,2,2) = Fn(currElem,5)
+        local_work%fn(ii,2,3) = Fn(currElem,6)
+        local_work%fn(ii,3,1) = Fn(currElem,7)
+        local_work%fn(ii,3,2) = Fn(currElem,8)
+        local_work%fn(ii,3,3) = Fn(currElem,9)
       end do
 !DIR$ LOOP COUNT MAX=128
 !DIR$ VECTOR ALIGNED
       do ii = 1, span
-        local_work%fn1(ii,1,1) = Fn1(ii,1)
-        local_work%fn1(ii,1,2) = Fn1(ii,2)
-        local_work%fn1(ii,1,3) = Fn1(ii,3)
-        local_work%fn1(ii,2,1) = Fn1(ii,4)
-        local_work%fn1(ii,2,2) = Fn1(ii,5)
-        local_work%fn1(ii,2,3) = Fn1(ii,6)
-        local_work%fn1(ii,3,1) = Fn1(ii,7)
-        local_work%fn1(ii,3,2) = Fn1(ii,8)
-        local_work%fn1(ii,3,3) = Fn1(ii,9)
+        currElem = felem + ii - 1
+        local_work%fn1(ii,1,1) = Fn1(currElem,1)
+        local_work%fn1(ii,1,2) = Fn1(currElem,2)
+        local_work%fn1(ii,1,3) = Fn1(currElem,3)
+        local_work%fn1(ii,2,1) = Fn1(currElem,4)
+        local_work%fn1(ii,2,2) = Fn1(currElem,5)
+        local_work%fn1(ii,2,3) = Fn1(currElem,6)
+        local_work%fn1(ii,3,1) = Fn1(currElem,7)
+        local_work%fn1(ii,3,2) = Fn1(currElem,8)
+        local_work%fn1(ii,3,3) = Fn1(currElem,9)
       end do
       fnh = half * ( local_work%fn + local_work%fn1 )
       dfn = local_work%fn1 - local_work%fn
+      if(local_debug .and. blk .eq. 2) then
+        write(*,*) " Now checking Fn1"
+        write(*,'(9D12.4)') Fn1(felem,:)
+      endif
 c
 c              compute rotation tensor
 c
@@ -323,14 +363,22 @@ c
 c     recover stress and stiffness
 c
       call rstgp1( local_work, uddt )
-      if(local_debug .and. blk .eq. 1) then
-        write(out,*) "uddt of the 1st element is ", uddt(1,:)
-      endif
 c
 c     scatter local variables to global
 c
       call rplstr( span, felem, ngp, mat_type, iter,
      &             geo_non_flg, local_work, blk )
+      if(local_debug .and. blk .eq. 2) then
+        write(*,*) "uddt of the 2nd block is "
+        do ii = 1,span
+          write(*,'(6D12.4)') uddt(ii,:)
+        enddo
+      endif
+      if(local_debug .and. blk .eq. 2) then
+        write(*,*) " Now checking urcs of 2nd block:"
+c       write(*,'(9D12.4)') local_work%urcs_blk_n1(1:span,:,:)
+        write(*,'(6D12.4)') urcs_n_blocks(2)%ptr(1:26:5)
+      endif
 
 c     compute cs_blk_n1(Cauchy stress) from urcs_blk_n1
 c
@@ -368,6 +416,10 @@ c     see Simo & Hughes, chapter 7
 c     input:  cep_blk_n1(mxvl,nstr*nstr)
 c     output: A_blk_n1(mxvl,nstrs*nstrs)
       call cep2A( span, cs_blk_n1, cep_blk_n1, fn1inv, detF, A_blk_n1 )
+      if(local_debug .and. blk .eq. 2) then
+        write(*,*) " Now checking P of 2nd block:"
+        write(*,'(9D12.4)') P_blk_n1(1,:)
+      endif
 c
 c     update global P and tangent stiffness
       do ii = 1, span
@@ -406,6 +458,7 @@ c
 c
       subroutine mm01_hardCoded
       implicit none 
+      real(8) :: ym, nu, beta, tan_e, yld
 c
 c                hard code uddt, uncs and gp_dtemps
 c
@@ -423,12 +476,28 @@ c     enddo
 c     local_work%urcs_blk_n1(1,1,gpn) = zero ! cartesian stress for step n+1
       
       ! material parameters
-      local_work%e_vec = 30000.0D0 ! young's modulus in the block
-      local_work%nu_vec = 0.3D0 ! poisson's ratio
-      local_work%beta_vec = one ! isotropic/kinematic fractional factor for elements in the block
-      local_work%h_vec = 300.0D0 ! plastic hardening modulus
-      local_work%sigyld_vec = 60.0D0 ! uniaxial yield stress
-      
+      if ( matList( felem ) .eq. 1 ) then
+        ym = 24000.0D0 ! young's modulus in the block
+        nu = 0.3D0 ! poisson's ratio
+        beta = half ! isotropic/kinematic fractional factor for elements in the block
+        tan_e = 1000.0D0! plastic hardening modulus
+        yld = 200.0D0 ! uniaxial yield stress
+      else
+        ym = 12000.0D0 ! young's modulus in the block
+        nu = 0.3D0 ! poisson's ratio
+        beta = half ! isotropic/kinematic fractional factor for elements in the block
+        tan_e = 1000.0D0! plastic hardening modulus
+        yld = 100.0D0 ! uniaxial yield stress
+      endif
+      local_work%e_vec = ym ! young's modulus in the block
+      local_work%nu_vec = nu ! poisson's ratio
+      local_work%beta_vec = beta ! isotropic/kinematic fractional factor for elements in the block
+      local_work%tan_e_vec =  tan_e ! plastic hardening modulus
+      local_work%sigyld_vec = yld ! uniaxial yield stress
+      local_work%h_vec = tan_e*ym/(ym - tan_e) 
+      local_work%e_vec_n = ym
+      local_work%nu_vec_n = nu
+
       ! all 11 history variables
 c     local_work%elem_hist(:,1,:) = 7.9899D-3 ! lamda * dt @ n
 c     local_work%elem_hist(:,1,:) = 7.9868D-003
@@ -443,8 +512,6 @@ c     local_work%elem_hist(:,9,:) = zero
 c     local_work%elem_hist(:,10,:) = zero
 c     local_work%elem_hist(:,11,:) = zero
       local_work%rtse(1,1,gpn) = zero ! "relative" trial elastic stress rate
-      local_work%e_vec_n = 30000.0D0 ! young's modulus at step n
-      local_work%nu_vec_n = 0.3D0 ! poisson's ratio at step n
         
 c     other properties required by rstgp1
       local_work%block_energy = zero
@@ -498,6 +565,8 @@ c
         allocate ( DbarF(N3, ndim2) )
         allocate ( b(N3, ndim2) )
         allocate ( dFm(N3, ndim2) )
+        allocate ( barF(N3, ndim2) )
+        allocate ( barF_t(N3, ndim2) )
   
 c     allocate FFT related variables
         allocate ( real1(N3) )
@@ -531,6 +600,7 @@ c
           deallocate( cep_blocks(blk)%vector )
         end do
         deallocate( cep_blocks )
+        deallocate( barF, barF_t )
 
       case default
         write(*,*) ">>Error: invalid option. Job terminated"
@@ -730,7 +800,8 @@ c
 
 c     input variables
       integer :: out
-      real(8) :: b(veclen), x(veclen), tol
+      real(8), intent(in) :: b(veclen), tol
+      real(8), intent(out) :: x(veclen)
 
 c     internal variables
       integer, parameter :: nipar = 128, ndpar = 128
@@ -879,9 +950,12 @@ c     input variables
       real(8), intent(in) :: F(N3, ndim2)
       real(8), intent(out) :: GKF(N3, ndim2)
       logical flgK
-
-c     internal variables
+c
+c               local
+      logical :: local_debug
       integer :: ii
+
+      local_debug = .false.
 
 c     multiply by K4
       tmpReal = F
@@ -895,6 +969,9 @@ c     fft
       do ii = 1, ndim2
         call fftfem3d(tmpReal(:,ii), tmpCplx(:,ii))
       enddo
+c     write(11,*) tmpCplx(:,1)
+c     write(*,*) maxval(real(tmpCplx))
+c     write(*,*) minval(real(tmpCplx))
 
 c     multiply by G_hat matrix
       call ddot42n_cmplx(Ghat4, tmpCplx, N3)
@@ -1000,6 +1077,8 @@ c     internal variables
       integer :: fftStatus, tmp
       logical debug
       integer, dimension(:), allocatable :: ffts, iffts
+      complex(8), parameter :: zero = (0.0D0, 0.0D0)
+      real :: fftrange, fftmax, fftmin
 
 c     allocate local variables
       allocate( ffts(N) )
@@ -1041,13 +1120,13 @@ c     free descriptor
 c     construct the whole matrix and perform fftshift
       cplx3( 1:Nhalf  , :  , :   ) = cplx3half
       cplx3( Nhalf+1:N, 1  , 1   ) = 
-     &                 conjg( cplx3half( Nhalf:2:-1, 1     , 1      ) )
+     &                 dconjg( cplx3half( Nhalf:2:-1, 1     , 1      ) )
       cplx3( Nhalf+1:N, 1  , 2:N ) = 
-     &                 conjg( cplx3half( Nhalf:2:-1, 1     , N:2:-1 ) )
+     &                 dconjg( cplx3half( Nhalf:2:-1, 1     , N:2:-1 ) )
       cplx3( Nhalf+1:N, 2:N, 1   ) = 
-     &                 conjg( cplx3half( Nhalf:2:-1, N:2:-1, 1      ) )
+     &                 dconjg( cplx3half( Nhalf:2:-1, N:2:-1, 1      ) )
       cplx3( Nhalf+1:N, 2:N, 2:N ) = 
-     &                 conjg( cplx3half( Nhalf:2:-1, N:2:-1, N:2:-1 ) )
+     &                 dconjg( cplx3half( Nhalf:2:-1, N:2:-1, N:2:-1 ) )
       cplx3                        = cplx3(ffts, ffts, ffts)
 
 c     deallocate local variables
@@ -1518,7 +1597,7 @@ c       voigt notation: 1-11, 2-22, 3-33, 4-12, 5-23, 6-13
         P(ii,8) = detF(ii) * ( cs(ii,6)*finv(ii,2,1) 
      &          + cs(ii,5)*finv(ii,2,2) + cs(ii,3)*finv(ii,2,3) )
         ! P33 = cs(31)*finv(31) + cs(32)*finv(32) + cs(33)*finv(33)
-        P(ii,7) = detF(ii) * ( cs(ii,6)*finv(ii,3,1) 
+        P(ii,9) = detF(ii) * ( cs(ii,6)*finv(ii,3,1) 
      &          + cs(ii,5)*finv(ii,3,2) + cs(ii,3)*finv(ii,3,3) )
       enddo
       return

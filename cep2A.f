@@ -14,14 +14,16 @@ c
 c
 c                   global
       integer, intent(in) :: span
-      real(8), intent(in) :: sigma(mxvl,*), cep(mxvl,nstr,*)
+      real(8), intent(in) :: sigma(mxvl,nstr), cep(mxvl,nstr,*)
       real(8), intent(in) :: detF(*), F_inv(mxvl,*)
       real(8), intent(out):: A4(mxvl,*)
 c
 c                   local
       integer :: ii
+      logical :: local_debug
       real(8), allocatable :: matgeo(:,:)
 c
+      local_debug = .false.
       allocate(matgeo(mxvl,nstrs*nstrs))
 c
 c     add geometric stiffness to total stiffness
@@ -31,10 +33,10 @@ c     add geometric stiffness to total stiffness
         matgeo(ii,1) = cep(ii,1,1) + sigma(ii,1) * detF(ii)
         matgeo(ii,2) = cep(ii,1,4)
         matgeo(ii,3) = cep(ii,1,6)
-        matgeo(ii,4) = cep(ii,1,4) + sigma(ii,2) * detF(ii)
+        matgeo(ii,4) = cep(ii,1,4) + sigma(ii,4) * detF(ii)
         matgeo(ii,5) = cep(ii,1,2)
         matgeo(ii,6) = cep(ii,1,5)
-        matgeo(ii,7) = cep(ii,1,6) + sigma(ii,3) * detF(ii)
+        matgeo(ii,7) = cep(ii,1,6) + sigma(ii,6) * detF(ii)
         matgeo(ii,8) = cep(ii,1,5)
         matgeo(ii,9) = cep(ii,1,3)
         matgeo(ii,10) = cep(ii,4,1)
@@ -45,10 +47,10 @@ c     add geometric stiffness to total stiffness
         matgeo(ii,11) = cep(ii,4,4) + sigma(ii,1) * detF(ii)
         matgeo(ii,12) = cep(ii,4,6)
         matgeo(ii,13) = cep(ii,4,4)
-        matgeo(ii,14) = cep(ii,4,2) + sigma(ii,2) * detF(ii)
+        matgeo(ii,14) = cep(ii,4,2) + sigma(ii,4) * detF(ii)
         matgeo(ii,15) = cep(ii,4,5)
         matgeo(ii,16) = cep(ii,4,6)
-        matgeo(ii,17) = cep(ii,4,5) + sigma(ii,3) * detF(ii)
+        matgeo(ii,17) = cep(ii,4,5) + sigma(ii,6) * detF(ii)
         matgeo(ii,18) = cep(ii,4,3)
         matgeo(ii,19) = cep(ii,6,1)
         matgeo(ii,20) = cep(ii,6,4)
@@ -59,10 +61,10 @@ c     add geometric stiffness to total stiffness
         matgeo(ii,21) = cep(ii,6,6) + sigma(ii,1) * detF(ii)
         matgeo(ii,22) = cep(ii,6,4)
         matgeo(ii,23) = cep(ii,6,2)
-        matgeo(ii,24) = cep(ii,6,5) + sigma(ii,2) * detF(ii)
+        matgeo(ii,24) = cep(ii,6,5) + sigma(ii,4) * detF(ii)
         matgeo(ii,25) = cep(ii,6,6)
         matgeo(ii,26) = cep(ii,6,5)
-        matgeo(ii,27) = cep(ii,6,3) + sigma(ii,3) * detF(ii)
+        matgeo(ii,27) = cep(ii,6,3) + sigma(ii,6) * detF(ii)
         matgeo(ii,28) = cep(ii,4,1) + sigma(ii,4) * detF(ii)
         matgeo(ii,29) = cep(ii,4,4)
         matgeo(ii,30) = cep(ii,4,6)
@@ -70,10 +72,10 @@ c     add geometric stiffness to total stiffness
 !DIR$ LOOP COUNT MAX=128
 !DIR$ VECTOR ALIGNED
       do ii = 1, span
-        matgeo(ii,31) = cep(ii,4,4) + sigma(ii,5) * detF(ii)
+        matgeo(ii,31) = cep(ii,4,4) + sigma(ii,2) * detF(ii)
         matgeo(ii,32) = cep(ii,4,2)
         matgeo(ii,33) = cep(ii,4,5)
-        matgeo(ii,34) = cep(ii,4,6) + sigma(ii,6) * detF(ii)
+        matgeo(ii,34) = cep(ii,4,6) + sigma(ii,5) * detF(ii)
         matgeo(ii,35) = cep(ii,4,5)
         matgeo(ii,36) = cep(ii,4,3)
         matgeo(ii,37) = cep(ii,2,1)
@@ -84,10 +86,10 @@ c     add geometric stiffness to total stiffness
 !DIR$ LOOP COUNT MAX=128
 !DIR$ VECTOR ALIGNED
       do ii = 1, span
-        matgeo(ii,41) = cep(ii,2,2) + sigma(ii,5) * detF(ii)
+        matgeo(ii,41) = cep(ii,2,2) + sigma(ii,2) * detF(ii)
         matgeo(ii,42) = cep(ii,2,5)
         matgeo(ii,43) = cep(ii,2,6)
-        matgeo(ii,44) = cep(ii,2,5) + sigma(ii,6) * detF(ii)
+        matgeo(ii,44) = cep(ii,2,5) + sigma(ii,5) * detF(ii)
         matgeo(ii,45) = cep(ii,2,3)
         matgeo(ii,46) = cep(ii,5,1)
         matgeo(ii,47) = cep(ii,5,4)
@@ -98,47 +100,55 @@ c     add geometric stiffness to total stiffness
 !DIR$ LOOP COUNT MAX=128
 !DIR$ VECTOR ALIGNED
       do ii = 1, span
-        matgeo(ii,51) = cep(ii,5,5) + sigma(ii,5) * detF(ii)
+        matgeo(ii,51) = cep(ii,5,5) + sigma(ii,2) * detF(ii)
         matgeo(ii,52) = cep(ii,5,6)
         matgeo(ii,53) = cep(ii,5,5)
-        matgeo(ii,54) = cep(ii,5,3) + sigma(ii,6) * detF(ii)
-        matgeo(ii,55) = cep(ii,6,1) + sigma(ii,7) * detF(ii)
+        matgeo(ii,54) = cep(ii,5,3) + sigma(ii,5) * detF(ii)
+        matgeo(ii,55) = cep(ii,6,1) + sigma(ii,6) * detF(ii)
         matgeo(ii,56) = cep(ii,6,4)
         matgeo(ii,57) = cep(ii,6,6)
-        matgeo(ii,58) = cep(ii,6,4) + sigma(ii,8) * detF(ii)
+        matgeo(ii,58) = cep(ii,6,4) + sigma(ii,5) * detF(ii)
         matgeo(ii,59) = cep(ii,6,2)
         matgeo(ii,60) = cep(ii,6,5)
       end do
 !DIR$ LOOP COUNT MAX=128
 !DIR$ VECTOR ALIGNED
       do ii = 1, span
-        matgeo(ii,61) = cep(ii,6,6) + sigma(ii,9) * detF(ii)
+        matgeo(ii,61) = cep(ii,6,6) + sigma(ii,3) * detF(ii)
         matgeo(ii,62) = cep(ii,6,5)
         matgeo(ii,63) = cep(ii,6,3)
         matgeo(ii,64) = cep(ii,5,1)
-        matgeo(ii,65) = cep(ii,5,4) + sigma(ii,7) * detF(ii)
+        matgeo(ii,65) = cep(ii,5,4) + sigma(ii,6) * detF(ii)
         matgeo(ii,66) = cep(ii,5,6)
         matgeo(ii,67) = cep(ii,5,4)
-        matgeo(ii,68) = cep(ii,5,2) + sigma(ii,8) * detF(ii)
+        matgeo(ii,68) = cep(ii,5,2) + sigma(ii,5) * detF(ii)
         matgeo(ii,69) = cep(ii,5,5)
         matgeo(ii,70) = cep(ii,5,6)
       end do
 !DIR$ LOOP COUNT MAX=128
 !DIR$ VECTOR ALIGNED
       do ii = 1, span
-        matgeo(ii,71) = cep(ii,5,5) + sigma(ii,9) * detF(ii)
+        matgeo(ii,71) = cep(ii,5,5) + sigma(ii,3) * detF(ii)
         matgeo(ii,72) = cep(ii,5,3)
         matgeo(ii,73) = cep(ii,3,1)
         matgeo(ii,74) = cep(ii,3,4)
-        matgeo(ii,75) = cep(ii,3,6) + sigma(ii,7) * detF(ii)
+        matgeo(ii,75) = cep(ii,3,6) + sigma(ii,6) * detF(ii)
         matgeo(ii,76) = cep(ii,3,4)
         matgeo(ii,77) = cep(ii,3,2)
-        matgeo(ii,78) = cep(ii,3,5) + sigma(ii,8) * detF(ii)
+        matgeo(ii,78) = cep(ii,3,5) + sigma(ii,5) * detF(ii)
         matgeo(ii,79) = cep(ii,3,6)
         matgeo(ii,80) = cep(ii,3,5)
-        matgeo(ii,81) = cep(ii,3,3) + sigma(ii,9) * detF(ii)
+        matgeo(ii,81) = cep(ii,3,3) + sigma(ii,3) * detF(ii)
       end do
 c
+c     check material + geometry
+      if (local_debug) then
+        write(out, 1000)
+        do ii = 1, span
+          write(out, 1001) ii
+          write(out, 1002) sigma(ii,:)
+        enddo
+      endif
 c     pull back to reference configuration
 !DIR$ LOOP COUNT MAX=128
 !DIR$ VECTOR ALIGNED
@@ -1195,4 +1205,7 @@ c     pull back to reference configuration
       end do
       deallocate( matgeo )
       return
+ 1000 format(5x,'>>> cep2A: Now checking mat+geo')
+ 1001 format(5x,'    local_element: ',i3)
+ 1002 format( 6D9.2 )
       end subroutine

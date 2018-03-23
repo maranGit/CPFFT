@@ -542,7 +542,15 @@ c            for iter = 0 and no extrapolation, use linear-elastic [D]
 c            with props at n+1.
 
 c      if( iter >= 1 .or. extrapolated_du ) then !nonlinear update
-      if( iter >= 1 ) then !nonlinear update
+c
+c     ****************************************************************
+c     *                                                              *
+c     *                 Ran modify this line                         *
+c     *                 no need to call drive_01_update              *
+c     *                                                              *
+c     ****************************************************************
+c     if( iter >= 1 ) then !nonlinear update
+      if( .true. ) then 
        if( local_debug ) write(iout,9060)
 c       call mm01( span, felem, gpn, step, iter, local_work%e_vec,
 c     &           local_work%nu_vec, local_work%beta_vec,
@@ -554,6 +562,18 @@ c     &           uddt, local_work%elem_hist(1,1,gpn),
 c     &           local_work%elem_hist1(1,1,gpn),
 c     &           local_work%rtse(1,1,gpn), gp_dtemps,
 c     &           local_work%e_vec_n, local_work%nu_vec_n  )
+       if(local_debug .and. local_work%blk .eq. 2) then
+         write(*,*) "ym_n1: ", local_work%e_vec(1:span)
+         write(*,*) "nu_n1: ", local_work%nu_vec(1:span)
+         write(*,*) "beta: ", local_work%beta_vec(1:span)
+         write(*,*) "hprime_n1: ", local_work%h_vec(1:span)
+         write(*,*) "yld_n1: ", local_work%sigyld_vec(1:span)
+         write(*,*) "cgn", local_work%urcs_blk_n(1,:,1)
+         write(*,*) "uddt_voigt", uddt(1,:)
+         write(*,*) "currhist", local_work%elem_hist(1,:,1)
+         write(*,*) "ym_n", local_work%e_vec_n(1:span)
+         write(*,*) "nu_n", local_work%nu_vec_n(1:span)
+       endif
        call mm01( span, felem, gpn, step, iter, local_work%e_vec,
      &           local_work%nu_vec, local_work%beta_vec,
      &           local_work%h_vec, local_work%lnelas_vec,
@@ -584,7 +604,7 @@ c
 c      
       return
 c
- 9000 format(1x,'.... debug mm01. felem, gpn, span: ',i7,i3,i3)             
+ 9000 format(1x,'.... debug mm01. felem, gpn, span: ',i7,i3,i3)
  9010 format(10x,'...dtime, type, order, nnode, ndof:',e14.6,4i5,
      &     /,10x,'...geonl, step, iter, now_blk, mat_type: ',l2,4i5,
      &     /,10x,'...temperatures, temperatures_ref: ',

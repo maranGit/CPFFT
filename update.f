@@ -76,7 +76,8 @@ c$OMP&                     eblock_size, ublock_size )
          if( myid .ne. elblks(2,blk) ) cycle
          felem        = elblks(1,blk)
          span         = elblks(0,blk)
-         ngp          = iprops(6,felem)
+c        ngp          = iprops(6,felem)
+         ngp          = fftngp
          hblock_size  = span * ngp * history_blk_list(blk)
          eblock_size  = span * ngp * nstr
          ublock_size  = span * ngp * nstrs
@@ -90,6 +91,18 @@ c
          if( urcs_blk_list(blk) .eq. 1 )
      &      call update_copy( urcs_n_blocks(blk)%ptr(1),
      &                  urcs_n1_blocks(blk)%ptr(1), ublock_size )
+         if( local_debug ) then
+           write(*,*) "span: ", span
+           write(*,*) "ngp: ", ngp
+           write(*,*) "nstrs: ", nstrs
+           write(*,*) "span: ", span
+           write(*,*) "span: ", span
+           write(*,*) "Ran is here!!"
+           write(*,*) "current block is: ", blk
+           write(*,*) hblock_size, eps_blk_list(blk), urcs_blk_list(blk)
+           write(*,*) urcs_n_blocks(blk)%ptr(1)
+           write(*,*) urcs_n1_blocks(blk)%ptr(1)
+         endif
       end do ! on blk
 c$OMP END PARALLEL DO
 c

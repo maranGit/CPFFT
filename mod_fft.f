@@ -8,6 +8,7 @@ c     problem size
 c     global state variables
       real(8), dimension(:,:), save, allocatable :: Ghat4, K4
       real(8), dimension(:,:), save, allocatable :: DbarF, b, dFm
+      real(8), dimension(:,:), save, allocatable :: barF, barF_t
       real(8), dimension(:,:), save, allocatable :: Fn1, Fn, Pn1, Pn
       integer, dimension(:), save, allocatable :: matList
 

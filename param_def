@@ -1,6 +1,11 @@
 c
 c      last modified:  2/17/2017 rhd
 c
+c            Ran: number of gauss point in each fft 'element'
+      integer fftngp
+
+      parameter (fftngp=1)
+
       integer mxnod,mxel,mxndel, max_threads,
      &    mxlbel,mxndof,mxgp,nstr,mxstep,mxlc,
      &    mxmat,mxlsz,mxelmp,mxstmp, mxstc,

@@ -17,7 +17,7 @@ c     subroutine dupstr_blocked(
 c    & blk, span, felem, ngp, nnode, ndof, totdof, mat_type, 
 c    & geonl, step, iter, belinc, bcdst, ce_0, ce_n, ce_mid, ce_n1,
 c    & ue, due, local_work )
-      subroutine dupstr_blocked( blk, span, felem, mat_type, 
+      subroutine dupstr_blocked( blk, span, felem, ngp, mat_type, 
      & geonl, step, iter, local_work )
 c
       use elem_block_data, only:  history_blocks,
@@ -39,8 +39,7 @@ c
 c
 c           parameter declarations
 c
-      integer :: blk, span, felem, ngp, nnode, ndof, totdof, mat_type,
-     &           step, iter, hist_size
+      integer :: blk, span, felem, ngp, mat_type, step, iter, hist_size
       logical :: geonl
 c     integer :: belinc(nnode,*), bcdst(totdof,*)
 c     double precision ::
@@ -216,6 +215,13 @@ c
       call recstr_gastr( local_work%urcs_blk_n,
      &                   urcs_n_blocks(blk)%ptr(1),
      &                   ngp, nstrs, span )
+      if( blk.eq.2 .and. local_debug ) then
+        write(*,*) "Now in dupstr.f"
+        write(*,*) "... Printing urcs_blk_n1:"
+        write(*,'(9D12.4)') local_work%urcs_blk_n1(1,:,1)
+        write(*,*) "... Printing urcs_n_blocks:"
+        write(*,'(6D12.4)') urcs_n_blocks(2)%ptr(1:26:5)
+      endif
 c
 c
       select case ( mat_type )

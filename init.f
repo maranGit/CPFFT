@@ -86,7 +86,7 @@ c
         felem      = elblks(1,blk)
         span       = elblks(0,blk)
 c        ngp        = iprops(6,felem)
-        ngp = 1
+        ngp = fftngp
         call material_model_info( felem, 0, 1, hist_size )
         call material_model_info( felem, 0, 2, cep_size )
 c
@@ -199,7 +199,7 @@ c
 c     Ran hard code some values here
 c     new input, geometric nonlinear, only one gauss point
       proc_type = 1
-      ngp = 1
+      ngp = fftngp
 c
       allocate( eps_n_blocks(nelblk),stat=alloc_stat )
       if ( alloc_stat .ne. 0 ) then
@@ -327,7 +327,7 @@ c
 c     Ran hard code some values here
 c     new input, geometric nonlinear, only one gauss point
       proc_type = 1
-      ngp = 1
+      ngp = fftngp
 c
       allocate( urcs_n_blocks(nelblk),stat=alloc_stat )
       if ( alloc_stat .ne. 0 ) then
@@ -464,7 +464,7 @@ c
 c     Ran hard code some values here
 c     new input, geometric nonlinear, only one gauss point
       proc_type = 1
-      ngp = 1
+      ngp = fftngp
       geo_non_flg = .true.
 c
       if ( .not. allocated(rot_blk_list) ) then
