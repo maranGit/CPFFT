@@ -116,7 +116,6 @@ c         if( .not. nonlocal_flags(i) ) cycle
 c         chk = allocated( nonlocal_data_n(i)%state_values ) .and.
 c     &         allocated( nonlocal_data_n1(i)%state_values )
 c        if( chk ) then
-c!DIR$ VECTOR ALIGNED        
 c           nonlocal_data_n(i)%state_values(1:n) =
 c     &              nonlocal_data_n1(i)%state_values(1:n)
 c        else
@@ -129,10 +128,8 @@ c
 c                       update the nodal and element temperatures
 c
 c      if( temperatures ) then
-c!DIR$ VECTOR ALIGNED      
 c        temper_nodes(1:nonode) = temper_nodes(1:nonode) + 
 c     &                           dtemp_nodes(1:nonode)
-c!DIR$ VECTOR ALIGNED
 c        temper_elems(1:noelem) = temper_elems(1:noelem) +
 c     &                           dtemp_elems(1:noelem)
 c      end if
@@ -147,7 +144,6 @@ c
 c      update_lag_forces = allocated(total_lagrange_forces) .and.
 c     &                    allocated(d_lagrange_forces) 
 c      if( update_lag_forces ) then
-c!DIR$ VECTOR ALIGNED      
 c       total_lagrange_forces(1:nodof) = total_lagrange_forces(1:nodof)
 c     &                                 + d_lagrange_forces(1:nodof)
 c       if( local_debug ) then
@@ -201,7 +197,6 @@ c
       integer :: n
       double precision :: a(n), b(n)
 c
-!DIR$ VECTOR ALIGNED
       a = b
       return
       end

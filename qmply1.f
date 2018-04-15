@@ -26,8 +26,6 @@ c                      {m2} = [q] * {m1}   (6x1 vectors and 6x6 q]
 c
       if( nstr .eq. 6 ) then 
         do j = 1, 6
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED        
            do i = 1, span
               m2(i,j)= q(i,j,1)*m1(i,1)+q(i,j,2)*m1(i,2)+
      &                 q(i,j,3)*m1(i,3)+q(i,j,4)*m1(i,4)+
@@ -39,8 +37,6 @@ c
 c
       if( nstr .eq. 3 ) then   ! possible future 2-d elements
          do j = 1, 3
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED        
             do i = 1, span
                m2(i,j)= q(i,j,1)*m1(i,1)+q(i,j,2)*m1(i,2)+
      &                 q(i,j,3)*m1(i,3)+q(i,j,4)*m1(i,4)+

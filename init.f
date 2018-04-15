@@ -629,7 +629,6 @@ c
      &  vec(*), zero
       data zero / 0.0d00 /
 c
-!DIR$ IVDEP
       vec(1:n) = zero
 c
       return
@@ -653,49 +652,42 @@ c
      &  veca(*), vecb(*), vecc(*), zero, const
       integer opcode
       data zero / 0.0d0/
-c!DIR$ ASSUME_ALIGNED veca:64, vecb:64, vecc:64
 c      
       go to ( 100, 200, 300, 400, 500, 600, 700 ), opcode
 c
 c            opcode 1:   c = a * b
 c
  100  continue
-!DIR$ IVDEP
       vecc(1:n) = veca(1:n) * vecb(1:n)
       return
 c
 c            opcode 2:   b = b * a
 c
  200  continue
-!DIR$ IVDEP
       vecb(1:n) = vecb(1:n) * veca(1:n)
       return
 c
 c            opcode 3:   c = a / b
 c
  300  continue
-!DIR$ IVDEP
       vecc(1:n) = veca(1:n) / vecb(1:n)
       return
 c
 c            opcode v:   c = zero
 c
  400  continue
-!DIR$ IVDEP
       vecc(1:n) = zero
       return
 c
 c            opcode v:   a = b
 c
  500  continue
-!DIR$ IVDEP
       veca(1:n) = vecb(1:n)
       return
 c
 c            opcode v:   a = a + b
 c
  600  continue
-!DIR$ IVDEP
       veca(1:n) = veca(1:n) + vecb(1:n)
       return
 c
@@ -703,7 +695,6 @@ c            opcode v:   a = const * b ; const = vecc(1)
 c
  700  continue
       const = vecc(1)
-!DIR$ IVDEP
       veca(1:n) = const * vecb(1:n)
       return
 c

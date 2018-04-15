@@ -8,12 +8,13 @@ c     *                 last modified : 3/20/2018 RM                 *
 c     *                                                              *
 c     ****************************************************************
 c
-      subroutine cep2A(span, sigma, cep, F_inv, detF, A4)
+      subroutine cep2A(span, sigma, cep, F_inv, detF, A4, iout)
       implicit none
-      include 'common.main'
+c     include 'param_def'
+      integer, parameter :: mxvl = 128, nstr = 6, nstrs = 9
 c
 c                   global
-      integer, intent(in) :: span
+      integer, intent(in) :: span, iout
       real(8), intent(in) :: sigma(mxvl,nstr), cep(mxvl,nstr,*)
       real(8), intent(in) :: detF(*), F_inv(mxvl,*)
       real(8), intent(out):: A4(mxvl,*)
@@ -21,14 +22,13 @@ c
 c                   local
       integer :: ii
       logical :: local_debug
-      real(8), allocatable :: matgeo(:,:)
+      real(8) :: matgeo(mxvl,nstrs*nstrs)
+c     real(8), allocatable :: matgeo(:,:)
 c
       local_debug = .false.
-      allocate(matgeo(mxvl,nstrs*nstrs))
+c     allocate(matgeo(mxvl,nstrs*nstrs))
 c
 c     add geometric stiffness to total stiffness
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         matgeo(ii,1) = cep(ii,1,1) + sigma(ii,1) * detF(ii)
         matgeo(ii,2) = cep(ii,1,4)
@@ -41,8 +41,6 @@ c     add geometric stiffness to total stiffness
         matgeo(ii,9) = cep(ii,1,3)
         matgeo(ii,10) = cep(ii,4,1)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         matgeo(ii,11) = cep(ii,4,4) + sigma(ii,1) * detF(ii)
         matgeo(ii,12) = cep(ii,4,6)
@@ -55,8 +53,6 @@ c     add geometric stiffness to total stiffness
         matgeo(ii,19) = cep(ii,6,1)
         matgeo(ii,20) = cep(ii,6,4)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         matgeo(ii,21) = cep(ii,6,6) + sigma(ii,1) * detF(ii)
         matgeo(ii,22) = cep(ii,6,4)
@@ -69,8 +65,6 @@ c     add geometric stiffness to total stiffness
         matgeo(ii,29) = cep(ii,4,4)
         matgeo(ii,30) = cep(ii,4,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         matgeo(ii,31) = cep(ii,4,4) + sigma(ii,2) * detF(ii)
         matgeo(ii,32) = cep(ii,4,2)
@@ -83,8 +77,6 @@ c     add geometric stiffness to total stiffness
         matgeo(ii,39) = cep(ii,2,6)
         matgeo(ii,40) = cep(ii,2,4)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         matgeo(ii,41) = cep(ii,2,2) + sigma(ii,2) * detF(ii)
         matgeo(ii,42) = cep(ii,2,5)
@@ -97,8 +89,6 @@ c     add geometric stiffness to total stiffness
         matgeo(ii,49) = cep(ii,5,4)
         matgeo(ii,50) = cep(ii,5,2)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         matgeo(ii,51) = cep(ii,5,5) + sigma(ii,2) * detF(ii)
         matgeo(ii,52) = cep(ii,5,6)
@@ -111,8 +101,6 @@ c     add geometric stiffness to total stiffness
         matgeo(ii,59) = cep(ii,6,2)
         matgeo(ii,60) = cep(ii,6,5)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         matgeo(ii,61) = cep(ii,6,6) + sigma(ii,3) * detF(ii)
         matgeo(ii,62) = cep(ii,6,5)
@@ -125,8 +113,6 @@ c     add geometric stiffness to total stiffness
         matgeo(ii,69) = cep(ii,5,5)
         matgeo(ii,70) = cep(ii,5,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         matgeo(ii,71) = cep(ii,5,5) + sigma(ii,3) * detF(ii)
         matgeo(ii,72) = cep(ii,5,3)
@@ -143,15 +129,13 @@ c     add geometric stiffness to total stiffness
 c
 c     check material + geometry
       if (local_debug) then
-        write(out, 1000)
+        write(iout, 1000)
         do ii = 1, span
-          write(out, 1001) ii
-          write(out, 1002) sigma(ii,:)
+          write(iout, 1001) ii
+          write(iout, 1002) sigma(ii,:)
         enddo
       endif
 c     pull back to reference configuration
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,1) = F_inv(ii,1)*matgeo(ii,1)*F_inv(ii,1)
      &           + F_inv(ii,1)*matgeo(ii,2)*F_inv(ii,2)
@@ -163,8 +147,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,3)*matgeo(ii,20)*F_inv(ii,2)
      &           + F_inv(ii,3)*matgeo(ii,21)*F_inv(ii,3)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,2) = F_inv(ii,1)*matgeo(ii,1)*F_inv(ii,4)
      &           + F_inv(ii,1)*matgeo(ii,2)*F_inv(ii,5)
@@ -176,8 +158,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,3)*matgeo(ii,20)*F_inv(ii,5)
      &           + F_inv(ii,3)*matgeo(ii,21)*F_inv(ii,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,3) = F_inv(ii,1)*matgeo(ii,1)*F_inv(ii,7)
      &           + F_inv(ii,1)*matgeo(ii,2)*F_inv(ii,8)
@@ -189,8 +169,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,3)*matgeo(ii,20)*F_inv(ii,8)
      &           + F_inv(ii,3)*matgeo(ii,21)*F_inv(ii,9)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,4) = F_inv(ii,1)*matgeo(ii,4)*F_inv(ii,1)
      &           + F_inv(ii,1)*matgeo(ii,5)*F_inv(ii,2)
@@ -202,8 +180,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,3)*matgeo(ii,23)*F_inv(ii,2)
      &           + F_inv(ii,3)*matgeo(ii,24)*F_inv(ii,3)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,5) = F_inv(ii,1)*matgeo(ii,4)*F_inv(ii,4)
      &           + F_inv(ii,1)*matgeo(ii,5)*F_inv(ii,5)
@@ -215,8 +191,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,3)*matgeo(ii,23)*F_inv(ii,5)
      &           + F_inv(ii,3)*matgeo(ii,24)*F_inv(ii,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,6) = F_inv(ii,1)*matgeo(ii,4)*F_inv(ii,7)
      &           + F_inv(ii,1)*matgeo(ii,5)*F_inv(ii,8)
@@ -228,8 +202,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,3)*matgeo(ii,23)*F_inv(ii,8)
      &           + F_inv(ii,3)*matgeo(ii,24)*F_inv(ii,9)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,7) = F_inv(ii,1)*matgeo(ii,7)*F_inv(ii,1)
      &           + F_inv(ii,1)*matgeo(ii,8)*F_inv(ii,2)
@@ -241,8 +213,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,3)*matgeo(ii,26)*F_inv(ii,2)
      &           + F_inv(ii,3)*matgeo(ii,27)*F_inv(ii,3)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,8) = F_inv(ii,1)*matgeo(ii,7)*F_inv(ii,4)
      &           + F_inv(ii,1)*matgeo(ii,8)*F_inv(ii,5)
@@ -254,8 +224,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,3)*matgeo(ii,26)*F_inv(ii,5)
      &           + F_inv(ii,3)*matgeo(ii,27)*F_inv(ii,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,9) = F_inv(ii,1)*matgeo(ii,7)*F_inv(ii,7)
      &           + F_inv(ii,1)*matgeo(ii,8)*F_inv(ii,8)
@@ -267,8 +235,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,3)*matgeo(ii,26)*F_inv(ii,8)
      &           + F_inv(ii,3)*matgeo(ii,27)*F_inv(ii,9)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,10) = F_inv(ii,4)*matgeo(ii,1)*F_inv(ii,1)
      &           + F_inv(ii,4)*matgeo(ii,2)*F_inv(ii,2)
@@ -280,8 +246,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,6)*matgeo(ii,20)*F_inv(ii,2)
      &           + F_inv(ii,6)*matgeo(ii,21)*F_inv(ii,3)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,11) = F_inv(ii,4)*matgeo(ii,1)*F_inv(ii,4)
      &           + F_inv(ii,4)*matgeo(ii,2)*F_inv(ii,5)
@@ -293,8 +257,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,6)*matgeo(ii,20)*F_inv(ii,5)
      &           + F_inv(ii,6)*matgeo(ii,21)*F_inv(ii,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,12) = F_inv(ii,4)*matgeo(ii,1)*F_inv(ii,7)
      &           + F_inv(ii,4)*matgeo(ii,2)*F_inv(ii,8)
@@ -306,8 +268,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,6)*matgeo(ii,20)*F_inv(ii,8)
      &           + F_inv(ii,6)*matgeo(ii,21)*F_inv(ii,9)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,13) = F_inv(ii,4)*matgeo(ii,4)*F_inv(ii,1)
      &           + F_inv(ii,4)*matgeo(ii,5)*F_inv(ii,2)
@@ -319,8 +279,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,6)*matgeo(ii,23)*F_inv(ii,2)
      &           + F_inv(ii,6)*matgeo(ii,24)*F_inv(ii,3)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,14) = F_inv(ii,4)*matgeo(ii,4)*F_inv(ii,4)
      &           + F_inv(ii,4)*matgeo(ii,5)*F_inv(ii,5)
@@ -332,8 +290,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,6)*matgeo(ii,23)*F_inv(ii,5)
      &           + F_inv(ii,6)*matgeo(ii,24)*F_inv(ii,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,15) = F_inv(ii,4)*matgeo(ii,4)*F_inv(ii,7)
      &           + F_inv(ii,4)*matgeo(ii,5)*F_inv(ii,8)
@@ -345,8 +301,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,6)*matgeo(ii,23)*F_inv(ii,8)
      &           + F_inv(ii,6)*matgeo(ii,24)*F_inv(ii,9)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,16) = F_inv(ii,4)*matgeo(ii,7)*F_inv(ii,1)
      &           + F_inv(ii,4)*matgeo(ii,8)*F_inv(ii,2)
@@ -358,8 +312,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,6)*matgeo(ii,26)*F_inv(ii,2)
      &           + F_inv(ii,6)*matgeo(ii,27)*F_inv(ii,3)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,17) = F_inv(ii,4)*matgeo(ii,7)*F_inv(ii,4)
      &           + F_inv(ii,4)*matgeo(ii,8)*F_inv(ii,5)
@@ -371,8 +323,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,6)*matgeo(ii,26)*F_inv(ii,5)
      &           + F_inv(ii,6)*matgeo(ii,27)*F_inv(ii,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,18) = F_inv(ii,4)*matgeo(ii,7)*F_inv(ii,7)
      &           + F_inv(ii,4)*matgeo(ii,8)*F_inv(ii,8)
@@ -384,8 +334,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,6)*matgeo(ii,26)*F_inv(ii,8)
      &           + F_inv(ii,6)*matgeo(ii,27)*F_inv(ii,9)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,19) = F_inv(ii,7)*matgeo(ii,1)*F_inv(ii,1)
      &           + F_inv(ii,7)*matgeo(ii,2)*F_inv(ii,2)
@@ -397,8 +345,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,9)*matgeo(ii,20)*F_inv(ii,2)
      &           + F_inv(ii,9)*matgeo(ii,21)*F_inv(ii,3)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,20) = F_inv(ii,7)*matgeo(ii,1)*F_inv(ii,4)
      &           + F_inv(ii,7)*matgeo(ii,2)*F_inv(ii,5)
@@ -410,8 +356,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,9)*matgeo(ii,20)*F_inv(ii,5)
      &           + F_inv(ii,9)*matgeo(ii,21)*F_inv(ii,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,21) = F_inv(ii,7)*matgeo(ii,1)*F_inv(ii,7)
      &           + F_inv(ii,7)*matgeo(ii,2)*F_inv(ii,8)
@@ -423,8 +367,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,9)*matgeo(ii,20)*F_inv(ii,8)
      &           + F_inv(ii,9)*matgeo(ii,21)*F_inv(ii,9)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,22) = F_inv(ii,7)*matgeo(ii,4)*F_inv(ii,1)
      &           + F_inv(ii,7)*matgeo(ii,5)*F_inv(ii,2)
@@ -436,8 +378,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,9)*matgeo(ii,23)*F_inv(ii,2)
      &           + F_inv(ii,9)*matgeo(ii,24)*F_inv(ii,3)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,23) = F_inv(ii,7)*matgeo(ii,4)*F_inv(ii,4)
      &           + F_inv(ii,7)*matgeo(ii,5)*F_inv(ii,5)
@@ -449,8 +389,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,9)*matgeo(ii,23)*F_inv(ii,5)
      &           + F_inv(ii,9)*matgeo(ii,24)*F_inv(ii,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,24) = F_inv(ii,7)*matgeo(ii,4)*F_inv(ii,7)
      &           + F_inv(ii,7)*matgeo(ii,5)*F_inv(ii,8)
@@ -462,8 +400,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,9)*matgeo(ii,23)*F_inv(ii,8)
      &           + F_inv(ii,9)*matgeo(ii,24)*F_inv(ii,9)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,25) = F_inv(ii,7)*matgeo(ii,7)*F_inv(ii,1)
      &           + F_inv(ii,7)*matgeo(ii,8)*F_inv(ii,2)
@@ -475,8 +411,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,9)*matgeo(ii,26)*F_inv(ii,2)
      &           + F_inv(ii,9)*matgeo(ii,27)*F_inv(ii,3)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,26) = F_inv(ii,7)*matgeo(ii,7)*F_inv(ii,4)
      &           + F_inv(ii,7)*matgeo(ii,8)*F_inv(ii,5)
@@ -488,8 +422,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,9)*matgeo(ii,26)*F_inv(ii,5)
      &           + F_inv(ii,9)*matgeo(ii,27)*F_inv(ii,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,27) = F_inv(ii,7)*matgeo(ii,7)*F_inv(ii,7)
      &           + F_inv(ii,7)*matgeo(ii,8)*F_inv(ii,8)
@@ -501,8 +433,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,9)*matgeo(ii,26)*F_inv(ii,8)
      &           + F_inv(ii,9)*matgeo(ii,27)*F_inv(ii,9)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,28) = F_inv(ii,1)*matgeo(ii,28)*F_inv(ii,1)
      &           + F_inv(ii,1)*matgeo(ii,29)*F_inv(ii,2)
@@ -514,8 +444,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,3)*matgeo(ii,47)*F_inv(ii,2)
      &           + F_inv(ii,3)*matgeo(ii,48)*F_inv(ii,3)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,29) = F_inv(ii,1)*matgeo(ii,28)*F_inv(ii,4)
      &           + F_inv(ii,1)*matgeo(ii,29)*F_inv(ii,5)
@@ -527,8 +455,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,3)*matgeo(ii,47)*F_inv(ii,5)
      &           + F_inv(ii,3)*matgeo(ii,48)*F_inv(ii,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,30) = F_inv(ii,1)*matgeo(ii,28)*F_inv(ii,7)
      &           + F_inv(ii,1)*matgeo(ii,29)*F_inv(ii,8)
@@ -540,8 +466,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,3)*matgeo(ii,47)*F_inv(ii,8)
      &           + F_inv(ii,3)*matgeo(ii,48)*F_inv(ii,9)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,31) = F_inv(ii,1)*matgeo(ii,31)*F_inv(ii,1)
      &           + F_inv(ii,1)*matgeo(ii,32)*F_inv(ii,2)
@@ -553,8 +477,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,3)*matgeo(ii,50)*F_inv(ii,2)
      &           + F_inv(ii,3)*matgeo(ii,51)*F_inv(ii,3)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,32) = F_inv(ii,1)*matgeo(ii,31)*F_inv(ii,4)
      &           + F_inv(ii,1)*matgeo(ii,32)*F_inv(ii,5)
@@ -566,8 +488,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,3)*matgeo(ii,50)*F_inv(ii,5)
      &           + F_inv(ii,3)*matgeo(ii,51)*F_inv(ii,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,33) = F_inv(ii,1)*matgeo(ii,31)*F_inv(ii,7)
      &           + F_inv(ii,1)*matgeo(ii,32)*F_inv(ii,8)
@@ -579,8 +499,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,3)*matgeo(ii,50)*F_inv(ii,8)
      &           + F_inv(ii,3)*matgeo(ii,51)*F_inv(ii,9)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,34) = F_inv(ii,1)*matgeo(ii,34)*F_inv(ii,1)
      &           + F_inv(ii,1)*matgeo(ii,35)*F_inv(ii,2)
@@ -592,8 +510,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,3)*matgeo(ii,53)*F_inv(ii,2)
      &           + F_inv(ii,3)*matgeo(ii,54)*F_inv(ii,3)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,35) = F_inv(ii,1)*matgeo(ii,34)*F_inv(ii,4)
      &           + F_inv(ii,1)*matgeo(ii,35)*F_inv(ii,5)
@@ -605,8 +521,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,3)*matgeo(ii,53)*F_inv(ii,5)
      &           + F_inv(ii,3)*matgeo(ii,54)*F_inv(ii,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,36) = F_inv(ii,1)*matgeo(ii,34)*F_inv(ii,7)
      &           + F_inv(ii,1)*matgeo(ii,35)*F_inv(ii,8)
@@ -618,8 +532,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,3)*matgeo(ii,53)*F_inv(ii,8)
      &           + F_inv(ii,3)*matgeo(ii,54)*F_inv(ii,9)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,37) = F_inv(ii,4)*matgeo(ii,28)*F_inv(ii,1)
      &           + F_inv(ii,4)*matgeo(ii,29)*F_inv(ii,2)
@@ -631,8 +543,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,6)*matgeo(ii,47)*F_inv(ii,2)
      &           + F_inv(ii,6)*matgeo(ii,48)*F_inv(ii,3)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,38) = F_inv(ii,4)*matgeo(ii,28)*F_inv(ii,4)
      &           + F_inv(ii,4)*matgeo(ii,29)*F_inv(ii,5)
@@ -644,8 +554,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,6)*matgeo(ii,47)*F_inv(ii,5)
      &           + F_inv(ii,6)*matgeo(ii,48)*F_inv(ii,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,39) = F_inv(ii,4)*matgeo(ii,28)*F_inv(ii,7)
      &           + F_inv(ii,4)*matgeo(ii,29)*F_inv(ii,8)
@@ -657,8 +565,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,6)*matgeo(ii,47)*F_inv(ii,8)
      &           + F_inv(ii,6)*matgeo(ii,48)*F_inv(ii,9)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,40) = F_inv(ii,4)*matgeo(ii,31)*F_inv(ii,1)
      &           + F_inv(ii,4)*matgeo(ii,32)*F_inv(ii,2)
@@ -670,8 +576,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,6)*matgeo(ii,50)*F_inv(ii,2)
      &           + F_inv(ii,6)*matgeo(ii,51)*F_inv(ii,3)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,41) = F_inv(ii,4)*matgeo(ii,31)*F_inv(ii,4)
      &           + F_inv(ii,4)*matgeo(ii,32)*F_inv(ii,5)
@@ -683,8 +587,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,6)*matgeo(ii,50)*F_inv(ii,5)
      &           + F_inv(ii,6)*matgeo(ii,51)*F_inv(ii,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,42) = F_inv(ii,4)*matgeo(ii,31)*F_inv(ii,7)
      &           + F_inv(ii,4)*matgeo(ii,32)*F_inv(ii,8)
@@ -696,8 +598,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,6)*matgeo(ii,50)*F_inv(ii,8)
      &           + F_inv(ii,6)*matgeo(ii,51)*F_inv(ii,9)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,43) = F_inv(ii,4)*matgeo(ii,34)*F_inv(ii,1)
      &           + F_inv(ii,4)*matgeo(ii,35)*F_inv(ii,2)
@@ -709,8 +609,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,6)*matgeo(ii,53)*F_inv(ii,2)
      &           + F_inv(ii,6)*matgeo(ii,54)*F_inv(ii,3)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,44) = F_inv(ii,4)*matgeo(ii,34)*F_inv(ii,4)
      &           + F_inv(ii,4)*matgeo(ii,35)*F_inv(ii,5)
@@ -722,8 +620,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,6)*matgeo(ii,53)*F_inv(ii,5)
      &           + F_inv(ii,6)*matgeo(ii,54)*F_inv(ii,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,45) = F_inv(ii,4)*matgeo(ii,34)*F_inv(ii,7)
      &           + F_inv(ii,4)*matgeo(ii,35)*F_inv(ii,8)
@@ -735,8 +631,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,6)*matgeo(ii,53)*F_inv(ii,8)
      &           + F_inv(ii,6)*matgeo(ii,54)*F_inv(ii,9)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,46) = F_inv(ii,7)*matgeo(ii,28)*F_inv(ii,1)
      &           + F_inv(ii,7)*matgeo(ii,29)*F_inv(ii,2)
@@ -748,8 +642,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,9)*matgeo(ii,47)*F_inv(ii,2)
      &           + F_inv(ii,9)*matgeo(ii,48)*F_inv(ii,3)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,47) = F_inv(ii,7)*matgeo(ii,28)*F_inv(ii,4)
      &           + F_inv(ii,7)*matgeo(ii,29)*F_inv(ii,5)
@@ -761,8 +653,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,9)*matgeo(ii,47)*F_inv(ii,5)
      &           + F_inv(ii,9)*matgeo(ii,48)*F_inv(ii,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,48) = F_inv(ii,7)*matgeo(ii,28)*F_inv(ii,7)
      &           + F_inv(ii,7)*matgeo(ii,29)*F_inv(ii,8)
@@ -774,8 +664,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,9)*matgeo(ii,47)*F_inv(ii,8)
      &           + F_inv(ii,9)*matgeo(ii,48)*F_inv(ii,9)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,49) = F_inv(ii,7)*matgeo(ii,31)*F_inv(ii,1)
      &           + F_inv(ii,7)*matgeo(ii,32)*F_inv(ii,2)
@@ -787,8 +675,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,9)*matgeo(ii,50)*F_inv(ii,2)
      &           + F_inv(ii,9)*matgeo(ii,51)*F_inv(ii,3)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,50) = F_inv(ii,7)*matgeo(ii,31)*F_inv(ii,4)
      &           + F_inv(ii,7)*matgeo(ii,32)*F_inv(ii,5)
@@ -800,8 +686,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,9)*matgeo(ii,50)*F_inv(ii,5)
      &           + F_inv(ii,9)*matgeo(ii,51)*F_inv(ii,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,51) = F_inv(ii,7)*matgeo(ii,31)*F_inv(ii,7)
      &           + F_inv(ii,7)*matgeo(ii,32)*F_inv(ii,8)
@@ -813,8 +697,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,9)*matgeo(ii,50)*F_inv(ii,8)
      &           + F_inv(ii,9)*matgeo(ii,51)*F_inv(ii,9)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,52) = F_inv(ii,7)*matgeo(ii,34)*F_inv(ii,1)
      &           + F_inv(ii,7)*matgeo(ii,35)*F_inv(ii,2)
@@ -826,8 +708,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,9)*matgeo(ii,53)*F_inv(ii,2)
      &           + F_inv(ii,9)*matgeo(ii,54)*F_inv(ii,3)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,53) = F_inv(ii,7)*matgeo(ii,34)*F_inv(ii,4)
      &           + F_inv(ii,7)*matgeo(ii,35)*F_inv(ii,5)
@@ -839,8 +719,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,9)*matgeo(ii,53)*F_inv(ii,5)
      &           + F_inv(ii,9)*matgeo(ii,54)*F_inv(ii,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,54) = F_inv(ii,7)*matgeo(ii,34)*F_inv(ii,7)
      &           + F_inv(ii,7)*matgeo(ii,35)*F_inv(ii,8)
@@ -852,8 +730,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,9)*matgeo(ii,53)*F_inv(ii,8)
      &           + F_inv(ii,9)*matgeo(ii,54)*F_inv(ii,9)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,55) = F_inv(ii,1)*matgeo(ii,55)*F_inv(ii,1)
      &           + F_inv(ii,1)*matgeo(ii,56)*F_inv(ii,2)
@@ -865,8 +741,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,3)*matgeo(ii,74)*F_inv(ii,2)
      &           + F_inv(ii,3)*matgeo(ii,75)*F_inv(ii,3)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,56) = F_inv(ii,1)*matgeo(ii,55)*F_inv(ii,4)
      &           + F_inv(ii,1)*matgeo(ii,56)*F_inv(ii,5)
@@ -878,8 +752,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,3)*matgeo(ii,74)*F_inv(ii,5)
      &           + F_inv(ii,3)*matgeo(ii,75)*F_inv(ii,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,57) = F_inv(ii,1)*matgeo(ii,55)*F_inv(ii,7)
      &           + F_inv(ii,1)*matgeo(ii,56)*F_inv(ii,8)
@@ -891,8 +763,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,3)*matgeo(ii,74)*F_inv(ii,8)
      &           + F_inv(ii,3)*matgeo(ii,75)*F_inv(ii,9)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,58) = F_inv(ii,1)*matgeo(ii,58)*F_inv(ii,1)
      &           + F_inv(ii,1)*matgeo(ii,59)*F_inv(ii,2)
@@ -904,8 +774,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,3)*matgeo(ii,77)*F_inv(ii,2)
      &           + F_inv(ii,3)*matgeo(ii,78)*F_inv(ii,3)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,59) = F_inv(ii,1)*matgeo(ii,58)*F_inv(ii,4)
      &           + F_inv(ii,1)*matgeo(ii,59)*F_inv(ii,5)
@@ -917,8 +785,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,3)*matgeo(ii,77)*F_inv(ii,5)
      &           + F_inv(ii,3)*matgeo(ii,78)*F_inv(ii,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,60) = F_inv(ii,1)*matgeo(ii,58)*F_inv(ii,7)
      &           + F_inv(ii,1)*matgeo(ii,59)*F_inv(ii,8)
@@ -930,8 +796,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,3)*matgeo(ii,77)*F_inv(ii,8)
      &           + F_inv(ii,3)*matgeo(ii,78)*F_inv(ii,9)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,61) = F_inv(ii,1)*matgeo(ii,61)*F_inv(ii,1)
      &           + F_inv(ii,1)*matgeo(ii,62)*F_inv(ii,2)
@@ -943,8 +807,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,3)*matgeo(ii,80)*F_inv(ii,2)
      &           + F_inv(ii,3)*matgeo(ii,81)*F_inv(ii,3)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,62) = F_inv(ii,1)*matgeo(ii,61)*F_inv(ii,4)
      &           + F_inv(ii,1)*matgeo(ii,62)*F_inv(ii,5)
@@ -956,8 +818,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,3)*matgeo(ii,80)*F_inv(ii,5)
      &           + F_inv(ii,3)*matgeo(ii,81)*F_inv(ii,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,63) = F_inv(ii,1)*matgeo(ii,61)*F_inv(ii,7)
      &           + F_inv(ii,1)*matgeo(ii,62)*F_inv(ii,8)
@@ -969,8 +829,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,3)*matgeo(ii,80)*F_inv(ii,8)
      &           + F_inv(ii,3)*matgeo(ii,81)*F_inv(ii,9)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,64) = F_inv(ii,4)*matgeo(ii,55)*F_inv(ii,1)
      &           + F_inv(ii,4)*matgeo(ii,56)*F_inv(ii,2)
@@ -982,8 +840,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,6)*matgeo(ii,74)*F_inv(ii,2)
      &           + F_inv(ii,6)*matgeo(ii,75)*F_inv(ii,3)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,65) = F_inv(ii,4)*matgeo(ii,55)*F_inv(ii,4)
      &           + F_inv(ii,4)*matgeo(ii,56)*F_inv(ii,5)
@@ -995,8 +851,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,6)*matgeo(ii,74)*F_inv(ii,5)
      &           + F_inv(ii,6)*matgeo(ii,75)*F_inv(ii,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,66) = F_inv(ii,4)*matgeo(ii,55)*F_inv(ii,7)
      &           + F_inv(ii,4)*matgeo(ii,56)*F_inv(ii,8)
@@ -1008,8 +862,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,6)*matgeo(ii,74)*F_inv(ii,8)
      &           + F_inv(ii,6)*matgeo(ii,75)*F_inv(ii,9)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,67) = F_inv(ii,4)*matgeo(ii,58)*F_inv(ii,1)
      &           + F_inv(ii,4)*matgeo(ii,59)*F_inv(ii,2)
@@ -1021,8 +873,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,6)*matgeo(ii,77)*F_inv(ii,2)
      &           + F_inv(ii,6)*matgeo(ii,78)*F_inv(ii,3)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,68) = F_inv(ii,4)*matgeo(ii,58)*F_inv(ii,4)
      &           + F_inv(ii,4)*matgeo(ii,59)*F_inv(ii,5)
@@ -1034,8 +884,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,6)*matgeo(ii,77)*F_inv(ii,5)
      &           + F_inv(ii,6)*matgeo(ii,78)*F_inv(ii,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,69) = F_inv(ii,4)*matgeo(ii,58)*F_inv(ii,7)
      &           + F_inv(ii,4)*matgeo(ii,59)*F_inv(ii,8)
@@ -1047,8 +895,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,6)*matgeo(ii,77)*F_inv(ii,8)
      &           + F_inv(ii,6)*matgeo(ii,78)*F_inv(ii,9)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,70) = F_inv(ii,4)*matgeo(ii,61)*F_inv(ii,1)
      &           + F_inv(ii,4)*matgeo(ii,62)*F_inv(ii,2)
@@ -1060,8 +906,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,6)*matgeo(ii,80)*F_inv(ii,2)
      &           + F_inv(ii,6)*matgeo(ii,81)*F_inv(ii,3)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,71) = F_inv(ii,4)*matgeo(ii,61)*F_inv(ii,4)
      &           + F_inv(ii,4)*matgeo(ii,62)*F_inv(ii,5)
@@ -1073,8 +917,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,6)*matgeo(ii,80)*F_inv(ii,5)
      &           + F_inv(ii,6)*matgeo(ii,81)*F_inv(ii,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,72) = F_inv(ii,4)*matgeo(ii,61)*F_inv(ii,7)
      &           + F_inv(ii,4)*matgeo(ii,62)*F_inv(ii,8)
@@ -1086,8 +928,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,6)*matgeo(ii,80)*F_inv(ii,8)
      &           + F_inv(ii,6)*matgeo(ii,81)*F_inv(ii,9)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,73) = F_inv(ii,7)*matgeo(ii,55)*F_inv(ii,1)
      &           + F_inv(ii,7)*matgeo(ii,56)*F_inv(ii,2)
@@ -1099,8 +939,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,9)*matgeo(ii,74)*F_inv(ii,2)
      &           + F_inv(ii,9)*matgeo(ii,75)*F_inv(ii,3)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,74) = F_inv(ii,7)*matgeo(ii,55)*F_inv(ii,4)
      &           + F_inv(ii,7)*matgeo(ii,56)*F_inv(ii,5)
@@ -1112,8 +950,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,9)*matgeo(ii,74)*F_inv(ii,5)
      &           + F_inv(ii,9)*matgeo(ii,75)*F_inv(ii,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,75) = F_inv(ii,7)*matgeo(ii,55)*F_inv(ii,7)
      &           + F_inv(ii,7)*matgeo(ii,56)*F_inv(ii,8)
@@ -1125,8 +961,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,9)*matgeo(ii,74)*F_inv(ii,8)
      &           + F_inv(ii,9)*matgeo(ii,75)*F_inv(ii,9)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,76) = F_inv(ii,7)*matgeo(ii,58)*F_inv(ii,1)
      &           + F_inv(ii,7)*matgeo(ii,59)*F_inv(ii,2)
@@ -1138,8 +972,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,9)*matgeo(ii,77)*F_inv(ii,2)
      &           + F_inv(ii,9)*matgeo(ii,78)*F_inv(ii,3)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,77) = F_inv(ii,7)*matgeo(ii,58)*F_inv(ii,4)
      &           + F_inv(ii,7)*matgeo(ii,59)*F_inv(ii,5)
@@ -1151,8 +983,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,9)*matgeo(ii,77)*F_inv(ii,5)
      &           + F_inv(ii,9)*matgeo(ii,78)*F_inv(ii,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,78) = F_inv(ii,7)*matgeo(ii,58)*F_inv(ii,7)
      &           + F_inv(ii,7)*matgeo(ii,59)*F_inv(ii,8)
@@ -1164,8 +994,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,9)*matgeo(ii,77)*F_inv(ii,8)
      &           + F_inv(ii,9)*matgeo(ii,78)*F_inv(ii,9)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,79) = F_inv(ii,7)*matgeo(ii,61)*F_inv(ii,1)
      &           + F_inv(ii,7)*matgeo(ii,62)*F_inv(ii,2)
@@ -1177,8 +1005,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,9)*matgeo(ii,80)*F_inv(ii,2)
      &           + F_inv(ii,9)*matgeo(ii,81)*F_inv(ii,3)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,80) = F_inv(ii,7)*matgeo(ii,61)*F_inv(ii,4)
      &           + F_inv(ii,7)*matgeo(ii,62)*F_inv(ii,5)
@@ -1190,8 +1016,6 @@ c     pull back to reference configuration
      &           + F_inv(ii,9)*matgeo(ii,80)*F_inv(ii,5)
      &           + F_inv(ii,9)*matgeo(ii,81)*F_inv(ii,6)
       end do
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
       do ii = 1, span
         A4(ii,81) = F_inv(ii,7)*matgeo(ii,61)*F_inv(ii,7)
      &           + F_inv(ii,7)*matgeo(ii,62)*F_inv(ii,8)
@@ -1203,7 +1027,7 @@ c     pull back to reference configuration
      &           + F_inv(ii,9)*matgeo(ii,80)*F_inv(ii,8)
      &           + F_inv(ii,9)*matgeo(ii,81)*F_inv(ii,9)
       end do
-      deallocate( matgeo )
+c     deallocate( matgeo )
       return
  1000 format(5x,'>>> cep2A: Now checking mat+geo')
  1001 format(5x,'    local_element: ',i3)

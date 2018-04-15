@@ -15,18 +15,27 @@ c     *                                                              *
 c     ****************************************************************
 c
       subroutine ctran1( span, felem, blk, cep, qn1, cs, qbar, dj, w,
-     &                   is_umat, umat_stress_type, is_crys_pls  )
-      implicit integer (a-z)
+     &                   is_umat, umat_stress_type, is_crys_pls, debug )
+      implicit none
       include 'param_def'
-      integer :: gpn = 1
-      double precision ::
-     &     cep(mxvl,nstr,*), qn1(mxvl,nstr,*), tc(mxvl,nstr,nstr),
-     &     cs(mxvl,*), half, two, dj(*), w, wf, halfw
-      logical :: qbar, is_umat, is_crys_pls, do_transform
+
+c                 global
+      integer, intent(in) :: span, felem, blk, umat_stress_type
+      double precision :: cep(mxvl,nstr,*), qn1(mxvl,nstr,*), 
+     &     cs(mxvl,*), dj(*), w
+      logical :: qbar, is_umat, is_crys_pls, debug
+
+c                 local
+      double precision :: tc(mxvl,nstr,nstr), half, two, halfw, wf
+      integer, parameter :: gpn = fftngp
+      integer :: i, j
+      logical :: do_transform
       data half, two / 0.5d00, 2.0d00 /
 c
 c             extract cep(mxvl,nstr,nstr) from mod_elebloks
+      if(debug) write(*,*) "Entering extract_D_symmetric()"
       call extract_D_symmetric( gpn, span, blk, felem, cep )
+      if(debug) write(*,*) "Leaving extract_D_symmetric()"
 c      
 c             [cep] (mxvl x 6 x 6) relates increments
 c             of unrotated cauchy stress to increments
@@ -58,9 +67,6 @@ c             use 6 as number of stress components to expose
 c             value to compiler
 c
       do j = 1, 6
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ IVDEP
-!DIR$ VECTOR ALIGNED
          do i = 1, span
 c
             tc(i,j,1)= (qn1(i,j,1)*cep(i,1,1)+
@@ -112,9 +118,6 @@ c                       perform multiplication of
 c                       [cep*] =  [tc] * transpose([qn1])
 c
       do j = 1, 6
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ IVDEP
-!DIR$ VECTOR ALIGNED
          do i = 1, span
 c
             cep(i,j,1)= tc(i,j,1)*qn1(i,1,1)+
@@ -182,9 +185,6 @@ c            [cep] is essential for convergence of nearly homogeneous
 c            deformation problems.
 c
 c     if( qbar ) then
-c !DIR$ LOOP COUNT MAX=128  
-c !DIR$ IVDEP
-c !DIR$ VECTOR ALIGNED
 c       do i = 1, span
 c        wf    = dj(i) * w
 c        halfw = half * wf
@@ -265,9 +265,8 @@ c                     local variables
 c
       double precision :: weight, symm_part_cep(mxvl,21), f
       integer :: ielem, sloc, k 
-      double precision :: one
+      double precision, parameter :: one = 1.0D0
 c      
-      one     = 1.0D0
 c     span    = local_work%span
 c     weight  = local_work%weights(gpn)
 c     now_blk = local_work%blk
@@ -280,12 +279,9 @@ c
 c              expand to 6 x 6 symmetric [D] and scale by
 c              integration weight factor
 c
-c!DIR$ LOOP COUNT MAX=128 
 c      do ielem = 1, span
 c        sloc = ( 21 * span * (gpn-1) ) + 21 * (ielem-1)
 c        f = weight * local_work%det_jac_block(ielem,gpn)
-c!DIR$ IVDEP
-c!DIR$ VECTOR ALIGNED
 c        do k = 1, 21
 c         symm_part_cep(ielem,k) = f *
 c     &        gbl_cep_blocks(now_blk)%vector(sloc+k)
@@ -293,9 +289,6 @@ c        end do
 c      end do 
        
       do k = 1, 21
-!DIR$ LOOP COUNT MAX=128 
-!DIR$ IVDEP
-!DIR$ VECTOR ALIGNED
         do ielem = 1, span
         sloc = ( 21 * span * (gpn-1) ) + 21 * (ielem-1)
 c       f = weight * local_work%det_jac_block(ielem,gpn)
@@ -305,9 +298,6 @@ c       f = weight * local_work%det_jac_block(ielem,gpn)
         end do
       end do  
 
-!DIR$ LOOP COUNT MAX=128 
-!DIR$ IVDEP
-!DIR$ VECTOR ALIGNED
        do ielem = 1, span
         cep(ielem,1,1) = symm_part_cep(ielem,1)
         cep(ielem,2,1) = symm_part_cep(ielem,2)

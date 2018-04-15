@@ -16,11 +16,11 @@ c
 c
 c
       subroutine rtcmp1(span,f,r)
-      implicit integer (a-z)
+      implicit none
       include 'param_def'
+      integer :: span, i
       double precision
      &     f(mxvl,ndim,*),r(mxvl,ndim,*),ui(mxvl,nstr)
-c!DIR$ ASSUME_ALIGNED r:64, f:64,ui:64
 c
 c                       compute the inverse of the right
 c                       stretch tensor.
@@ -29,8 +29,6 @@ c
 c
 c                       compute the rotation tensor.
 c
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
       do i= 1,span
          r(i,1,1)= f(i,1,1)*ui(i,1)+f(i,1,2)*ui(i,2)+f(i,1,3)*ui(i,4)
          r(i,1,2)= f(i,1,1)*ui(i,2)+f(i,1,2)*ui(i,3)+f(i,1,3)*ui(i,5)
@@ -42,7 +40,6 @@ c
          r(i,3,2)= f(i,3,1)*ui(i,2)+f(i,3,2)*ui(i,3)+f(i,3,3)*ui(i,5)
          r(i,3,3)= f(i,3,1)*ui(i,4)+f(i,3,2)*ui(i,5)+f(i,3,3)*ui(i,6)
       end do
-c
 c
       return
       end
@@ -64,8 +61,11 @@ c
 c
 c
       subroutine irscp1( span, f, ui )
-      implicit integer (a-z)
+c     implicit integer (a-z)
+      implicit none
       include 'param_def'
+
+      integer :: span, i
 c
 c                       parameter declarations
 c
@@ -75,13 +75,11 @@ c
 c                       locally allocated arrays
 c
       double precision
-     &   c(mxvl,nstr), cc(mxvl,nstr),
+     &   c(mxvl,6), cc(mxvl,6),
      &   iu(mxvl), iiu(mxvl), iiiu(mxvl), a2(mxvl), b2(mxvl),
      &   c2(mxvl),d2(mxvl), one, two
 c
       data one, two / 1.0d00, 2.0d00 /
-c!DIR$ ASSUME_ALIGNED f:64, ui:64, c:64, cc:64, iu:64, iiu:64, iiiu:64
-c!DIR$ ASSUME_ALIGNED a2:64, b2:64, c2:64, d2:64
 c
 c                       ui is in symmetric upper triangular form.
 c
@@ -93,8 +91,6 @@ c
 c
 c                       compute multipliers.
 c
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
       do i = 1, span
          a2(i)= one/(iiiu(i)*(iu(i)*iiu(i)-iiiu(i)))
          b2(i)= iu(i)*iiu(i)*iiu(i)-iiiu(i)*(iu(i)*iu(i)+iiu(i))
@@ -105,8 +101,6 @@ c
 c                       compute the inverse of the right
 c                       stretch tensor.
 c
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
       do i = 1, span
          ui(i,1)= a2(i) * ( b2(i) + c2(i)*c(i,1) + d2(i)*cc(i,1) )
          ui(i,2)= a2(i) * (         c2(i)*c(i,2) + d2(i)*cc(i,2) )
@@ -142,21 +136,17 @@ c               parameter declarations
 c
       integer :: span
       double precision ::
-     & f(mxvl,ndim,*), c(mxvl,*), cc(mxvl,*), iu(*), iiu(*), iiiu(*)
+     & f(mxvl,ndim,*), c(mxvl,6), cc(mxvl,6), iu(*), iiu(*), iiiu(*)
 c
 c               locally allocated arrays
 c
       integer :: i
       logical, parameter :: new = .true.
       double precision :: ct(mxvl,nstr), ev(mxvl,ndim)
-c!DIR$ ASSUME_ALIGNED f:64, c:64, cc:64, iu:64, iiu:64, iiiu:64
-c!DIR$ ASSUME_ALIGNED ct:64, ev:64
 c
 c              c and cc are in symmetric upper triangular form.
 c              compute the metric tensor.
 c
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
       do i = 1, span
        c(i,1)= f(i,1,1)*f(i,1,1)+f(i,2,1)*f(i,2,1)+f(i,3,1)*f(i,3,1)
        c(i,2)= f(i,1,1)*f(i,1,2)+f(i,2,1)*f(i,2,2)+f(i,3,1)*f(i,3,2)
@@ -168,8 +158,6 @@ c
 c
 c              compute the square of the metric tensor
 c
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
       do i = 1, span
        cc(i,1)= c(i,1)*c(i,1)+c(i,2)*c(i,2)+c(i,4)*c(i,4)
        cc(i,2)= c(i,1)*c(i,2)+c(i,2)*c(i,3)+c(i,4)*c(i,5)
@@ -186,14 +174,12 @@ c              form Cardano extraction of eigenvales for this
 c              specific type & size of matrix. New is 
 c              considerable faster.
 c
-      if( new ) call evcmp1_new( span, mxvl, c, ev )     
+      if( new ) call evcmp1_new( span, mxvl, c, ev )
       if( .not. new ) then   
 c
 c              copy the metric tensor to stress vector
 c              form then get principal values.
 c
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
           do i = 1, span
              ct(i,1)= c(i,1)
              ct(i,2)= c(i,3)
@@ -207,8 +193,6 @@ c
 c
 c              set the principal values.
 c
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
       do i = 1, span
          ev(i,1)= sqrt(ev(i,1))
          ev(i,2)= sqrt(ev(i,2))
@@ -217,8 +201,6 @@ c
 c
 c              invariants of right stretch tensor.
 c
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
       do i = 1, span
        iu(i)  = ev(i,1)+ev(i,2)+ev(i,3)
        iiu(i) = ev(i,1)*ev(i,2)+ev(i,2)*ev(i,3)+ev(i,1)*ev(i,3)
@@ -262,7 +244,6 @@ c
       data quarter, sixpt75, oneroot3
      &     / 0.25d0, 6.75d0, 0.5773502691896258d0 /
 c      
-c!DIR$ ASSUME_ALIGNED c:64, lamda:64
 c
 c              calculates the eigenvalues of a symmetric 3x3 matrix 
 c              using Cardano's analytical algorithm.
@@ -340,7 +321,8 @@ c     *                                                              *
 c     ****************************************************************
 c
       subroutine evcmp1( span, k, lamda )
-      implicit integer (a-z)
+c     implicit integer (a-z)
+      implicit none
       include 'param_def'
 c
 c                 parameter declarations
@@ -357,23 +339,18 @@ c
      &  xsign(mxvl), rad(mxvl), errork(mxvl), swap(mxvl),
      &  ratiok(mxvl), sqtol, thold
       integer iexp(mxvl)
+      integer :: bel, maxswp, span, swpnum
       logical cvgtst
       double precision
-     &  jactol, one, four, ten, ten_thouth
+     &  jactol, one, four, ten, ten_thouth, zero, two
       data maxswp/15/,zero, one, two, jactol, four, ten, ten_thouth
      &   / 0.0d00, 1.0d00, 2.0d00, 1.0d-08,
      &     4.0d00, 10.0d00, 0.0001d00 /
-c!DIR$ ASSUME_ALIGNED k:64, lamda:64, m:64, kbari:64, kbarj:64
-c!DIR$ ASSUME_ALIGNED kbar:64, ki:64, kj:64, mi:64, mj:64, scale:64
-c!DIR$ ASSUME_ALIGNED alpha:64, gamma:64, x:64, xsign:64, rad:64
-c!DIR$ ASSUME_ALIGNED errork:64, swap:64, ratiok:64
 c
 c              initialize lamda, m, sweep parameters.
 c
       swpnum = 0
 c
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
       do bel = 1, span
 c
          m(bel,1)= one
@@ -437,8 +414,6 @@ c           *                                     *
 c           ***************************************
 c
 c
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
       do bel = 1, span
 c
 c                       check if term is within threshold
@@ -501,8 +476,6 @@ c           *           row 3 and column 1.       *
 c           *                                     *
 c           ***************************************
 c
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
       do bel = 1, span
 c
 c                       check if term is within threshold
@@ -564,8 +537,6 @@ c           *           row 3 and column 2.       *
 c           *                                     *
 c           ***************************************
 c
-!DIR$ LOOP COUNT MAX=128 
-!DIR$ VECTOR ALIGNED
       do bel = 1, span
 c
 c                       check if term is within threshold
@@ -627,7 +598,6 @@ c              check off-diagonal elements for convergence
 c
       cvgtst = .true.
 c
-!DIR$ VECTOR ALIGNED
       do bel = 1, span
 c
          errork(bel) = k(bel,4)*k(bel,4)/(k(bel,2)*k(bel,1))
@@ -657,8 +627,6 @@ c
 c
 c              update eigenvalue vector 
 c
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
       do bel = 1, span
          lamda(bel,1) = k(bel,1) / m(bel,1)
          lamda(bel,2) = k(bel,2) / m(bel,2)
@@ -667,9 +635,7 @@ c
 c
 c             reorder the eigenvalues. small to big
 c
-!DIR$ LOOP COUNT MAX=128  
 c
-!DIR$ VECTOR ALIGNED
       do bel = 1, span
 c
          if( lamda(bel,2) .lt. lamda(bel,1) ) then
@@ -727,7 +693,6 @@ c
       double precision
      & two, rbar(mxvl,3,3)
       data two / 2.0d00 /
-c!DIR$ ASSUME_ALIGNED q:64, r:64, rbar:64
 c
 c           compute q. branch on quantity & direction of rotation.
 c
@@ -743,8 +708,6 @@ c       vector forms for {d} and {D} use engineering shear strains.
 c       vector ordering is {x,y,z,xy,yz,xz}
 c
 
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
          do i = 1, span
             q(i,1,1)= r(i,1,1)**2
             q(i,1,2)= r(i,2,1)**2
@@ -798,8 +761,6 @@ c       vector ordering is {x,y,z,xy,yz,xz}. this [q] matrix
 c       is the transpose of the one above.
 c
 
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
          do i = 1, span
             q(i,1,1)= r(i,1,1)**2
             q(i,1,2)= r(i,1,2)**2
@@ -857,8 +818,6 @@ c       vector ordering is {x,y,z,xy,yz,xz}. this [q] matrix
 c       is the transpose of the one above.
 c
 
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
          do i = 1, span
           rbar(i,1,1) = r(i,1,1)
           rbar(i,1,2) = r(i,2,1)
@@ -872,8 +831,6 @@ c
          end do
 c
 
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
          do i = 1, span
            q(i,1,1)= rbar(i,1,1)**2
            q(i,1,2)= rbar(i,1,2)**2

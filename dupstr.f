@@ -54,7 +54,6 @@ c
      &   half, zero, one, mag, mags(3), djcoh(mxvl)
       data local_debug, half, zero, one
      &  / .false., 0.5d00, 0.0d00, 1.0d00 /
-c!DIR$ ASSUME_ALIGNED ce_0:64, ce_N:64, ce_mid:64, ce_n1:64  
 
 c
       if( local_debug ) write(out,9100)
@@ -69,8 +68,6 @@ c           pull coordinates at t=0 from global input vector.
 c
 c     k = 1
 c     do j = 1, nnode
-c !DIR$ LOOP COUNT MAX=128  
-c !DIR$ IVDEP
 c        do i = 1, span
 c           ce_0(i,k)   = c(bcdst(k,i))
 c           ce_0(i,k+1) = c(bcdst(k+1,i))
@@ -97,8 +94,6 @@ c
 c
 c     if( update_coords ) then
 c      do  j = 1, totdof
-c!DIR$ LOOP COUNT MAX=128  
-c!DIR$ IVDEP
 c         do i = 1, span
 c           ce_n(i,j)   = ce_0(i,j) + ue(i,j)
 c           ce_mid(i,j) = ce_0(i,j) + ue(i,j) + half*due(i,j)
@@ -117,8 +112,6 @@ c     end if   !  update_coords
 c
 c     if( .not. update_coords ) then
 c         do  j = 1, totdof
-c!DIR$ LOOP COUNT MAX=128  
-c!DIR$ IVDEP
 c           do i = 1, span
 c             ce_n(i,j)   = ce_0(i,j)
 c             ce_mid(i,j) = ce_0(i,j)
@@ -170,8 +163,6 @@ c
 c     if( fgm_node_values_defined ) then
 c       do j = 1,  fgm_node_values_cols
 c         do i = 1, nnode
-c!DIR$ LOOP COUNT MAX=128 
-c!DIR$ IVDEP 
 c           do k = 1, span
 c             local_work%enode_mat_props(i,k,j) =
 c    &                     fgm_node_values(belinc(i,k),j)
@@ -230,8 +221,6 @@ c
 c
 c           vectorized mises plasticty model.
 c
-c!DIR$ LOOP COUNT MAX=128 
-c!DIR$ IVDEP 
 c       do i = 1, span
 c          matl_no = iprops(38,felem+i-1)
 c          local_work%tan_e_vec(i) = matprp(4,matl_no)
@@ -249,8 +238,6 @@ c
 c           general mises/gurson model.
 c
         if ( local_debug ) write(out,9950)
-c!DIR$ LOOP COUNT MAX=128  
-c!DIR$ IVDEP
 c       do i = 1, span
 c          matl_no = iprops(38,felem+i-1)
 c          local_work%tan_e_vec(i) = matprp(4,matl_no)
@@ -347,7 +334,6 @@ c
      & mlocal(mxvl,nprm,*), mglobal(nprm,ngp,*)
 c
       integer :: k, j, i      
-c!DIR$ ASSUME_ALIGNED mlocal:64, mglobal:64  
 c
 c           unroll inner loop for most common number of integration
 c           points (ngp).
@@ -356,8 +342,6 @@ c
       if( ngp .ne. 8 ) then
         do k = 1, ngp
          do  j = 1, nprm
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
             do  i = 1, span
                mlocal(i,j,k) = mglobal(j,k,i)
             end do
@@ -369,8 +353,6 @@ c
 c                number of integration points = 8, unroll.
 c
       do  j = 1, nprm
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
         do  i = 1, span
             mlocal(i,j,1) = mglobal(j,1,i)
             mlocal(i,j,2) = mglobal(j,2,i)
@@ -411,8 +393,6 @@ c
 c      if( ngp .ne. 8 ) then
         do k = 1, ngp
          do  j = 1, hist_size
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
             do  i = 1, span
                local_hist(i,j,k) = global_hist(j,k,i)
             end do
@@ -424,8 +404,6 @@ c
 c                number of gauss points = 8, unroll.
 c
 c     do  j = 1, hist_size
-c@!DIR$ LOOP COUNT MAX=128  
-c@!DIR$ IVDEP
 c        do  i = 1, span
 c            local_hist(i,j,1) = global_hist(j,1,i)
 c            local_hist(i,j,2) = global_hist(j,2,i)

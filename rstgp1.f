@@ -18,9 +18,12 @@ c
 c
 c      subroutine rstgp1( props, lprops, iprops, local_work )
       subroutine rstgp1( local_work, uddt_out )
-      implicit integer (a-z)
+c     implicit integer (a-z)
+      implicit none
 c     use segmental_curves, only : max_seg_points
       integer, parameter :: max_seg_points=20
+      integer :: span, felem, type, order, gpn, ngp, nnode
+      integer :: ndof, step, iter, mat_type, iout, i, j, k
 c
       include 'param_def'
 c
@@ -75,13 +78,9 @@ c        full content and access uninitialized values.
 c
       allocate( ddt(mxvl,nstr), uddt(mxvl,nstr),
      &          qnhalf(mxvl,nstr,nstr), qn1(mxvl,nstr,nstr) )
-!DIR$ VECTOR ALIGNED
       ddt    = zero
-!DIR$ VECTOR ALIGNED
       uddt   = uddt_out
-!DIR$ VECTOR ALIGNED
       qnhalf = zero
-!DIR$ VECTOR ALIGNED
       qn1    = zero
 c
 c        process cohesive elements separately
@@ -362,7 +361,6 @@ c
      &           temperatures_ref, fgm_enode_props
 c
       data zero / 0.0d0 /
-c!DIR$ ASSUME_ALIGNED uddt_displ:64      
 c
 c           vectorized mises plasticity model with constant hardening
 c           modulus. the model supports temperature dependence of
@@ -448,7 +446,6 @@ c     &            local_work%sigyld_vec(1), local_work%shape(1,gpn),
 c     &            local_work%enode_mat_props, 7,
 c     &            local_work%fgm_flags(1,7) )
 c
-c!DIR$ LOOP COUNT MAX=128  
 c          do i = 1, span
 c            local_work%e_vec(i)  = local_work%e_vec_n(i)
 c            local_work%nu_vec(i) = local_work%nu_vec_n(i)
@@ -513,7 +510,6 @@ c      end if
 c
 c          get the thermal strain increment (actually negative of increment)
 c
-!DIR$ VECTOR ALIGNED
       uddt_temps = zero
 c      if ( temperatures ) then
 c        call gp_temp_eps( span, uddt_temps,
@@ -527,9 +523,7 @@ c            uddt_displ - strain increment due to displacement increment
 c            uddt_temps - (negative) of strain increment just due 
 c                         to temperature change
 c
-!DIR$ VECTOR ALIGNED
       uddt = uddt_displ + uddt_temps
-!DIR$ VECTOR ALIGNED
       cep  = zero
 c      
       do i = 1, span
@@ -643,8 +637,6 @@ c
 c              get linear-elastic [D] with potentially temperature
 c              dependent properties
 c      
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
       do i = 1, span
 c         if( local_work%killed_status_vec(i) ) cycle
          e  = local_work%e_vec(i)
@@ -704,20 +696,15 @@ c
       data zero / 0.0d00 /
 c
       integer i, k, m
-c!DIR$ ASSUME_ALIGNED local_cep:64, stress_n:64, stress_np1:64
-c!DIR$ ASSUME_ALIGNED uddt:64
 c
 c              for each element in block, update stresses by
 c              [D-elastic] * uddt. uddt contains thermal increment +
 c              increment from imposed nodal displacements
 c
-!DIR$ VECTOR ALIGNED
       stress_np1 = stress_n
 c      
       do k = 1, 6
        do m = 1, 6
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
          do i = 1, span
            stress_np1(i,k) = stress_np1(i,k) + 
      &                       local_cep(i,m,k) * uddt(i,m)
@@ -725,7 +712,6 @@ c
        end do
       end do   
 c
-!DIR$ LOOP COUNT MAX=128  
       do i = 1, span
         if( killed_status(i) ) stress_np1(i,1:6) = zero
       end do
@@ -751,11 +737,14 @@ c
 c
       subroutine material_model_info( element_no, block_no, info_type,
      &                                 value )
-      implicit integer (a-z)
+      implicit none
       include 'common.main'
+c                      global data
+      integer :: element_no, block_no, info_type, value
 c
 c                      local data
 c
+      integer :: local_element_no, mat_type
       integer :: info_vector(10)
       integer :: inter_mat
       logical :: is_inter_dmg
@@ -894,10 +883,7 @@ c                      parameter declarations
 c
       double precision ::
      & deps(mxvl,*), strain_np1(mxvl,*)
-c!DIR$ ASSUME_ALIGNED deps:64, strain_np1:64 
 c
-!DIR$ LOOP COUNT MAX=128
-!DIR$ VECTOR ALIGNED
        do i = 1, span
          strain_np1(i,1) = strain_np1(i,1) + deps(i,1)
          strain_np1(i,2) = strain_np1(i,2) + deps(i,2)
@@ -940,7 +926,6 @@ c      double precision ::
 c     &  sf(mxndel), xi, eta, zeta, weight, zero
 c      logical :: local_debug
 c      data zero, local_debug / 0.0d00, .false. /
-c!DIR$ ASSUME_ALIGNED gp_coords:64, node_coords:64, sf:64 
 c
 c      if( local_debug ) write(iout,*) '... in gauss_pt_coords'
 c
@@ -951,8 +936,6 @@ c
 c      call getgpts( etype, int_order, gpn, xi, eta, zeta, weight )
 c      call shapef( etype, xi, eta, zeta, sf(1) )
 c
-c!DIR$ LOOP COUNT MAX=128  
-c!DIR$ VECTOR ALIGNED
 c      do i = 1, span
 c         gp_coords(i,1) = zero
 c         gp_coords(i,2) = zero
@@ -967,8 +950,6 @@ c
 c      ky = nnodel
 c      kz = ky + nnodel
 c      do enode = 1, nnodel
-c!DIR$ LOOP COUNT MAX=128  
-c!DIR$ VECTOR ALIGNED
 c        do i = 1, span
 c          gp_coords(i,1) = gp_coords(i,1)  +
 c     &                      sf(enode) * node_coords(i,enode)
@@ -1010,8 +991,6 @@ c
       integer :: i, j, k, map(6)
       data half / 0.5d00 /
       data map / 1,2,3,4,6,5 /
-c!DIR$ ASSUME_ALIGNED matrix:64, symm_vector:64, tp:64
-c!DIR$ ASSUME_ALIGNED symm_version:64
 c
 c         1. compute transpose of 6 x 6 matrix
 c         2. compute symmetrized version
@@ -1082,11 +1061,8 @@ c
      &  ue(mxvl,*), due(mxvl,*), uenh(mxvl,*), uen1(mxvl,*),
      &  half
       data half / 0.5d00 /
-c!DIR$ ASSUME_ALIGNED ue:64, due:64, uenh:64, uen1:64            
 c
       do j = 1, ndof*nnode
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
         do i = 1, span
            uenh(i,j) = ue(i,j) + half*due(i,j)
            uen1(i,j) = ue(i,j) + due(i,j)
@@ -1103,12 +1079,8 @@ c
       double precision ::
      &  internal_energy, plastic_work, gp_energies(*),
      &  det_j(*), dfn1(*), gp_plast_work(*)
-c!DIR$ ASSUME_ALIGNED gp_energies:64, det_j:64, dfn1:64
-c!DIR$ ASSUME_ALIGNED gp_plast_work:64 
 c
       if( itype .ne. 1 ) go to 100
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
       do i = 1, span
         internal_energy = internal_energy + gp_energies(i) *
      &                     dfn1(i) * det_j(i)
@@ -1118,8 +1090,6 @@ c
       return
 c
  100  continue
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
       do i = 1, span
          internal_energy = internal_energy + gp_energies(i) *
      &                       det_j(i)
@@ -1173,8 +1143,6 @@ c
       k = 1
       do i = 1, 6
        do j = 1, i
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
          do ielem = 1, span
           full_cep(ielem,i,j) = ceps_blk(k,ielem,gpn)
           full_cep(ielem,j,i) = full_cep(ielem,i,j)
@@ -1186,13 +1154,10 @@ c
 c              compute stress @ n+1 = stress @ n + [Dt]* deps for
 c              each element in block at this integration point
 c
-!DIR$ VECTOR ALIGNED
       stress_np1(1:mxvl,1:6) = stress_n(1:mxvl,1:6)
 c
       do i = 1, 6
        do k = 1, 6
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
          do ielem = 1, span
            stress_np1(ielem,i) = stress_np1(ielem,i) +
      &         full_cep(ielem,i,k) * deps_blk(ielem,k)
@@ -1208,8 +1173,6 @@ c
       k = 1
       do i = 1, 3
        do j = 1, i
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
          do ielem = 1, span
           full_cep(ielem,i,j) = ceps_blk(k,ielem,gpn)
           full_cep(ielem,j,i) = full_cep(ielem,i,j)
@@ -1225,8 +1188,6 @@ c
 c
       do i = 1, 3
        do k = 1, 3
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
          do ielem = 1, span
            stress_np1(ielem,i) =  stress_np1(ielem,i) +
      &         full_cep(ielem,i,k) * deps_blk(ielem,k)
@@ -1262,8 +1223,6 @@ c
       integer i, k, ii, jj
 c
       if( nrow_ceps_blk .eq. 21 ) then ! symmetric [D] 6x6
-!DIR$ LOOP COUNT MAX=128 
-!DIR$ VECTOR ALIGNED
         do i = 1, span
           gbl_ceps_blk(1,i,gpn)  = local_cep(i,1,1)
           gbl_ceps_blk(2,i,gpn)  = local_cep(i,2,1)
@@ -1276,8 +1235,6 @@ c
           gbl_ceps_blk(9,i,gpn)  = local_cep(i,4,3)
           gbl_ceps_blk(10,i,gpn) = local_cep(i,4,4)
        end do
-!DIR$ LOOP COUNT MAX=128        
-!DIR$ VECTOR ALIGNED
        do i = 1, span   
           gbl_ceps_blk(11,i,gpn) = local_cep(i,5,1)
           gbl_ceps_blk(12,i,gpn) = local_cep(i,5,2)
@@ -1292,8 +1249,6 @@ c
           gbl_ceps_blk(21,i,gpn) = local_cep(i,6,6)
         end do
       elseif( nrow_ceps_blk .eq. 6 ) then ! symmetric [D] 3x3
-!DIR$ LOOP COUNT MAX=128  
-!DIR$ VECTOR ALIGNED
         do i = 1, span
           gbl_ceps_blk(1,i,gpn)  = local_cep(i,1,1)
           gbl_ceps_blk(2,i,gpn)  = local_cep(i,2,1)
@@ -1304,10 +1259,8 @@ c
         end do
       elseif( nrow_ceps_blk .eq. 36 ) then ! non-symmetric [D] 6x6
           k = 1 
-!DIR$ LOOP COUNT MAX=128  
           do i = 1, span
             do ii = 1, 6
-!DIR$ VECTOR ALIGNED            
               do jj = 1, 6
                 gbl_ceps_blk(k,i,gpn)  = local_cep(i,ii,jj)
                 k = k +1

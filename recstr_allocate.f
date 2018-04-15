@@ -59,9 +59,7 @@ c
         allocate( local_work%fn(mxvl,3,3),
      &           local_work%fn1(mxvl,3,3),
      &           local_work%dfn1(mxvl) )
-!DIR$ VECTOR ALIGNED
         local_work%fn1 = zero
-!DIR$ VECTOR ALIGNED
         local_work%dfn1 = zero
       end if
       
@@ -82,7 +80,6 @@ c
          call die_abort
       end if
       
-!DIR$ VECTOR ALIGNED
       local_work%b = zero      
 c
       allocate( local_work%uen1(mxvl,mxedof),
@@ -94,13 +91,9 @@ c
          write(out,9000) 4
          call die_abort
       end if
-!DIR$ VECTOR ALIGNED
       local_work%det_j       = zero
-!DIR$ VECTOR ALIGNED
       local_work%rot_blk_n1  = zero
-!DIR$ VECTOR ALIGNED
       local_work%urcs_blk_n1 = zero
-!DIR$ VECTOR ALIGNED
       local_work%urcs_blk_n  = zero
 c
       allocate( local_work%ddtse(mxvl,nstr,mxgp),
