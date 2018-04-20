@@ -15,6 +15,7 @@ c     ****************************************************************
 c
       subroutine FFT_init()
       use fft
+      use file_info
       implicit none
       include 'common.main'
 
@@ -22,6 +23,81 @@ c                         local
       integer :: phase(7,7,7)
       logical :: debug
       real(8), parameter :: zero = 0.0D0, one = 1.0D0
+      integer :: nblank, reclen, endchr
+      logical promsw,echosw,comsw,atrdsw,eolsw,eofsw,menusw,ptsw,signsw
+
+c
+c                       initialize the file input and output parameters
+c
+      inlun(1) = 5
+      inlun(2) = 80
+      inlun(3) = 81
+      inlun(4) = 82
+      inlun(5) = 83
+      inlun(6) = 84
+      inlun(7) = 85
+      inlun(8) = 86
+      inlun(9) = 87
+      inlun(10) = 88
+c
+      outlun(1) = 6
+      outlun(2) = 89
+c
+      filcnt   = 1
+      in       = inlun(filcnt)
+      out      = outlun(1)
+      outing   = .false.
+c
+c      output_packets = .false.
+c      packet_file_no = 97
+c      ascii_packet_file_no = 96
+c      packet_file_name(1:) = ' '
+c      ascii_packet_file_name(1:) = ' '
+c      batch_mess_fname(1:) = ' '
+c
+
+c                       summary of fortran file numbers used in warp3d
+c                       add new ones here....
+c
+c                       code updates are gradually using the function
+c                       warp3d_get_device_number() to obtain an available
+c                       file number for use during well-defined block
+c                       of execution
+c
+c         terminal input:               5  (Unix standard input)
+c         terminal output:              6  (Unix standard output)
+c         ascii energy file:            11
+c         other ascii input files
+c           for *input from file:       80-88
+c         other ascii output files
+c           for *output to file:        89
+c         ascii data packet file:       96
+c         binary data packet file:      97
+c         binary results file:          98
+c         formatted results file:       99
+
+c
+c
+c                       initialize scan
+c
+      call setin(in)
+      call setout(out)
+      nblank= 80
+      reclen= 80
+      endchr= 1h$
+      promsw= .false.
+      echosw= .true.
+      comsw= .false.
+      atrdsw= .false.
+      eolsw= .true.
+      eofsw= .true.
+      menusw= .false.
+      ptsw= .false.
+      signsw= .false.
+      call check_to_prompt( promsw )
+      call scinit(nblank,reclen,endchr,promsw,echosw,comsw,atrdsw,
+     &            eolsw,eofsw,menusw,ptsw,signsw)
+
 
 c ============== hard coded phase seperation ===========================
 c     problem size
