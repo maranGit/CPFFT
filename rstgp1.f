@@ -1276,23 +1276,3 @@ c
  9000 format(/,3x,">>> FATAL ERROR: wrong. size. rstgp1_store_cep",
      &       /,3x,"                 job aborted" )       
       end
-c
-c     ****************************************************************
-c     *                                                              *
-c     *                      subroutine die_gracefully               *
-c     *                                                              *
-c     *                       written by : asg                       *
-c     *                                                              *
-c     *                   last modified : 03/02/98                   *
-c     *                                                              *
-c     *         Dummy routine for serial version of warp3d.          *
-c     *                                                              *
-c     ****************************************************************
-c
-c
-      subroutine die_gracefully
-c
-      stop
-c
-      return
-      end

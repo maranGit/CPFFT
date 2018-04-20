@@ -5,6 +5,10 @@ c     problem size
       integer, save :: veclen
       integer, save :: dims(3)
 
+c     Newton-Raphson loop control
+      real(8), save :: straininc, tolPCG, tolNR
+      integer, save :: maxIter, nstep
+
 c     global state variables
       real(8), dimension(:,:), save, allocatable :: Ghat4, K4
       real(8), dimension(:,:), save, allocatable :: DbarF, b, dFm
