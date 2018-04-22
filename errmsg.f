@@ -15,13 +15,21 @@ c
 c
       subroutine errmsg(errnum,param,sparam,rparam,dparam)
       implicit none
+      include 'common.main'
+
+c                         global
       character(len=*) :: sparam
-c
       integer :: errnum, param
       double precision :: dparam
-      real :: erprmr, rparam
-c
-      include 'common.main'
+      real :: rparam
+c                        local
+
+      select case (errnum)
+      case (1)
+      case (2)
+      case (3)
+      case default
+      end select
 
       return
       end
