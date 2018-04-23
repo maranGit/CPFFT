@@ -25,6 +25,8 @@ c                         local
       real(8), parameter :: zero = 0.0D0, one = 1.0D0
       integer :: nblank, reclen, endchr
       logical promsw,echosw,comsw,atrdsw,eolsw,eofsw,menusw,ptsw,signsw
+      
+      integer :: i
 
 c
 c                       initialize the file input and output parameters
@@ -97,8 +99,37 @@ c
       call check_to_prompt( promsw )
       call scinit(nblank,reclen,endchr,promsw,echosw,comsw,atrdsw,
      &            eolsw,eofsw,menusw,ptsw,signsw)
-
-
+c
+c
+c                    build-in material library
+c
+      allocate( material_model_names(mxmat) )
+      material_model_names(1:mxmat)(1:) = "not_used"
+      material_model_names(1)(1:) = "bilinear"     
+      material_model_names(2)(1:) = "deformation"
+      material_model_names(3)(1:) = "mises_gurson"     
+      material_model_names(4)(1:) = "cohesive"     
+      material_model_names(5)(1:) = "cyclic"     
+      material_model_names(6)(1:) = "creep"     
+      material_model_names(7)(1:) = "mises_hydrogen"     
+      material_model_names(8)(1:) = "umat"     
+      material_model_names(9)(1:) = "not_used"     
+      material_model_names(10)(1:) = "crystal_plasticity"     
+      material_model_names(11)(1:) = "interface_damage"
+c
+c
+c                initialize material parameters array
+c
+      do i = 1, mxmat
+        mat_props(i)%assigned = .false.
+        mat_props(i)%matnum = 0
+        mat_props(i)%matnam = ' '
+        mat_props(i)%imatprp = 0
+        mat_props(i)%lmatprp = .false.
+        mat_props(i)%dmatprp = 0.0D0
+        mat_props(i)%smatprp = ' '
+      enddo
+c ======================================================================
 c ============== hard coded phase seperation ===========================
 c     problem size
       N = 7
@@ -113,7 +144,7 @@ c     hard code NR loop parameters in fft.mod
       phase = 0
       phase(3:7, 1:4, 3:7) = 1
 c ======================================================================
-      
+c ======================================================================
       ndim1 = 3
       ndim2 = ndim1 * ndim1
       ndim3 = ndim2 * ndim1
