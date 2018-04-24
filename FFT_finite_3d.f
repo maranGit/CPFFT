@@ -98,6 +98,7 @@ c         name = 1
         end do
         readnew = .true.
       case (5)
+        call inelem()
       case (6)
       case (7)
       case (8)

@@ -54,6 +54,20 @@ c                        local
         write(out,9008)
  9008   format(/,1x,'>>>>> Error: properties must have a type. ',
      &          'Returning to high level command not.',/)
+      case (9)
+        write(out,9009)
+ 9009   format(/,1x,'>>>>> Error: invalid element list',/)
+      case (10)
+        write(out,9010) sparam
+ 9010   format(/,1x,'>>>>> Error: unknown term ',a24,' in element',/)
+      case (11)
+        write(out,9011)
+ 9011   format(/,1x,'>>>>> Error: material must be followed by '
+     &         'a defined type in element definition',/)
+      case (12)
+        write(out,9012) sparam
+ 9012   format(/,1x,'>>>>> Error: in element definition, '
+     &         'material ',a8,' is not defined',/)
       case default
         write(out,9999)
  9999   format(/,1x,'>>>>> Error: Unrecogonized option in errmsg.f',/)

@@ -134,7 +134,7 @@ c
        m = 7
       case( "umat", "UMAT", "um" )
        m = 8
-      case( "crystal", "CP", "cp", "crystal_plasticity" )l
+      case( "crystal", "CP", "cp", "crystal_plasticity" )
        m = 10
       case default
          write(*,9000) material_model_id
