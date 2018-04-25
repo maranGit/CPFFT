@@ -68,6 +68,15 @@ c                        local
         write(out,9012) sparam
  9012   format(/,1x,'>>>>> Error: in element definition, '
      &         'material ',a8,' is not defined',/)
+      case (13)
+        write(out,9013)
+ 9013   format(/,1x,'>>>>> Error: Invalid in STRAINS, not a number.',/)
+      case (14)
+        write(out,9014)
+ 9014   format(/,1x,'>>>>> Error: Invalid step list.',/)
+      case (15)
+        write(out,9015)
+ 9015   format(/,1x,'>>>>> Error: Invalid.',/)
       case default
         write(out,9999)
  9999   format(/,1x,'>>>>> Error: Unrecogonized option in errmsg.f',/)

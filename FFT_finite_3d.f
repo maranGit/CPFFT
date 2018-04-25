@@ -99,17 +99,61 @@ c         name = 1
         readnew = .true.
       case (5)
         call inelem()
+        readnew = .false.
       case (6)
+        if(matchs('automatic',4)) call splunj
+        call inelbk( matList )
+        readnew = .true.
       case (7)
+        do while ( .true. )
+          call readsc()
+          if     ( matchs('F_xx',4) ) then
+            if ( .not. numd( F_total(1) ) ) 
+     &         call errmsg(13,dum,dums,dumr,dumd)
+          elseif ( matchs('F_xy',4) ) then
+            if ( .not. numd( F_total(2) ) ) 
+     &         call errmsg(13,dum,dums,dumr,dumd)
+          elseif ( matchs('F_xz',4) ) then
+            if ( .not. numd( F_total(3) ) ) 
+     &         call errmsg(13,dum,dums,dumr,dumd)
+          elseif ( matchs('F_yx',4) ) then
+            if ( .not. numd( F_total(4) ) ) 
+     &         call errmsg(13,dum,dums,dumr,dumd)
+          elseif ( matchs('F_yy',4) ) then
+            if ( .not. numd( F_total(5) ) ) 
+     &         call errmsg(13,dum,dums,dumr,dumd)
+          elseif ( matchs('F_yz',4) ) then
+            if ( .not. numd( F_total(6) ) ) 
+     &         call errmsg(13,dum,dums,dumr,dumd)
+          elseif ( matchs('F_zx',4) ) then
+            if ( .not. numd( F_total(7) ) ) 
+     &         call errmsg(13,dum,dums,dumr,dumd)
+          elseif ( matchs('F_zy',4) ) then
+            if ( .not. numd( F_total(8) ) ) 
+     &         call errmsg(13,dum,dums,dumr,dumd)
+          elseif ( matchs('F_zz',4) ) then
+            if ( .not. numd( F_total(9) ) ) 
+     &         call errmsg(13,dum,dums,dumr,dumd)
+          else
+            exit
+          end if
+        end do
+        readnew = .false.
       case (8)
+        call inlod()
+        readnew = .false.
       case (9)
+        readnew = .true.
       case (10)
         call drive_eps_sig( 1, 0 )
         call FFT_nr3()
+        readnew = .true.
       case (11)
         call fftAllocate( 2 )
       case (12)
+        call fftAllocate( 2 )
       case default
+        call errmsg(4,dum,dums,dumr,dumd)
       end select
 
       return

@@ -100,10 +100,9 @@ c
           ! store in matList with current material ID
           icn    = 0
           iplist = 1
-          do while( .true. )
+          do while( iplist .ne. 0 )
             call trxlst(intlst,lenlst,iplist,icn,elem)
-            if( iplist.eq.0 ) exit
-c           matList(elem) = currMat
+            matList(elem) = currMat
           end do
 
         ! unknown terms in element properties
