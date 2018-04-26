@@ -34,11 +34,13 @@
           call ProcessInput(9)
         elseif(matchs('compute',7)) then
           call ProcessInput(10)
-        elseif(matchs('stop',4)) then
+        elseif(matchs('output',6)) then
           call ProcessInput(11)
+        elseif(matchs('stop',4)) then
+          call ProcessInput(12)
           exit
         elseif(endfil(dum)) then
-          call ProcessInput(12)
+          call ProcessInput(13)
           exit
         else
           call errmsg(4,dum,dums,dumr,dumd)
@@ -72,8 +74,6 @@ c         name = 1
           if(matchs('of',2)) call splunj
           if(matchs('grid',4)) then
             if(.not.integr(N)) call errmsg(2,dum,dums,dumr,dumd)
-          elseif(matchs('materials',4)) then
-            if(.not.integr(nummat)) call errmsg(3,dum,dums,dumr,dumd)
           else
             call errmsg(4,dum,dums,dumr,dumd)
           endif
@@ -103,6 +103,7 @@ c         name = 1
       case (6)
         if(matchs('automatic',4)) call splunj
         call inelbk( matList )
+        call fftAllocate( 3 )
         readnew = .true.
       case (7)
         do while ( .true. )
@@ -143,14 +144,20 @@ c         name = 1
         call inlod()
         readnew = .false.
       case (9)
-        readnew = .true.
+        if(matchs('analysis',8)) call splunj
+        if(matchs('parameters',5)) call splunj
+        call indypm()
+        readnew = .false.
       case (10)
         call drive_eps_sig( 1, 0 )
         call FFT_nr3()
         readnew = .true.
       case (11)
-        call fftAllocate( 2 )
+        call oudrive()
+        readnew = .true.
       case (12)
+        call fftAllocate( 2 )
+      case (13)
         call fftAllocate( 2 )
       case default
         call errmsg(4,dum,dums,dumr,dumd)

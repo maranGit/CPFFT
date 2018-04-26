@@ -9,6 +9,7 @@ c     *                                                              *
 c     ****************************************************************
 c
       subroutine inlod()
+      use fft, only: mults, nstep
       implicit none
       include 'param_def'
 c                         global
@@ -23,6 +24,7 @@ c                         local
       logical, external :: matchs
 
       allocate( intlst(mxstep) )
+      nstep = 0
       mults = zero
 
       do while ( .true. )
@@ -31,7 +33,7 @@ c                         local
 
         ! read step list
         call scan()
-        call trlist(intlst,mxlsz,noelem,lenlst,errnum)
+        call trlist(intlst,mxlsz,mxstep,lenlst,errnum)
         if    ( errnum .eq. 2 ) then
           call errmsg(14,dum,dums,dumr,dumd)
           cycle
@@ -44,7 +46,7 @@ c                         local
         else
           ! successfully read an element list
           call backsp(1)
-          call LoadProps(intlst,lenlst)
+          call LoadProps()
         endif
       end do
 
@@ -57,7 +59,6 @@ c     *                      subroutine LoadProps                    *
 c     *                   read loading properties                    * 
 c     ****************************************************************
       subroutine LoadProps
-      use fft, only: mults
       implicit none
 c                         global
 c                         local
@@ -68,7 +69,7 @@ c                         local
 c                      read constraints
       if ( matchs( 'constraints',6 ) ) call splunj
       if ( .not. numd( constraints ) ) then
-        call errmsg()
+        call errmsg(15,dum,dums,dumr,dumd)
         return
       end if
 
@@ -80,17 +81,19 @@ c                     store constraints in step list
 
         if( step .gt. mxstep ) then
           param = mxstep
-          call errmsg(61,param,dums,dumr,dumd)
+          call errmsg(16,param,dums,dumr,dumd) ! too large step
           exit
         end if
 c
         if( step .lt. 0 ) then
           param = step
-          call errmsg(69,param,dums,dumr,dumd)
+          call errmsg(16,param,dums,dumr,dumd) ! negative step
           exit
         end if
 
+        if( nstep .lt. step) nstep = step
         mults(step) = constraints
       end do
+      return
       end subroutine ! LoadProps
       end subroutine ! inlod

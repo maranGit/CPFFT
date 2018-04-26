@@ -16,7 +16,7 @@ OBJ = $(MODS) FFT_finite_3d.o scan.o splunj.o star_com.o errmsg.o\
 	rstgp1.o mm01.o recstr_allocate.o eblk_init.o rplstr.o update.o\
 	polar.o qmply1.o dupstr.o cep2A.o gptns1.o drive_eps_sig.o\
 	G_K_dF.o mm00.o FFT_init.o FFT_nr3.o mpi_code.o inmat.o\
-	user_list.o inelem.o inlod.o
+	user_list.o inelem.o inlod.o indypm.o oudriv.o
 #
 #                          link
 #

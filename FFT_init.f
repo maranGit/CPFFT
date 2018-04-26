@@ -20,7 +20,6 @@ c
       include 'common.main'
 
 c                         local
-      integer :: phase(7,7,7)
       logical :: debug
       real(8), parameter :: zero = 0.0D0, one = 1.0D0
       integer :: nblank, reclen, endchr
@@ -129,22 +128,10 @@ c
         mat_props(i)%dmatprp = 0.0D0
         mat_props(i)%smatprp = ' '
       enddo
-c ======================================================================
-c ============== hard coded phase seperation ===========================
-c     problem size
-      N = 7
-      nstep = 10
-      
+
 c     hard code NR loop parameters in fft.mod
-      maxIter = 5
-      straininc = 0.001D0
-      tolNR = 1.0D-5
-      tolPCG = 1.0D-10
       debug = .false.
-      phase = 0
-      phase(3:7, 1:4, 3:7) = 1
-c ======================================================================
-c ======================================================================
+
       ndim1 = 3
       ndim2 = ndim1 * ndim1
       ndim3 = ndim2 * ndim1
@@ -155,10 +142,6 @@ c ======================================================================
       if ( mod(N, 2) .eq. 0 ) Nhalf = N / 2 + 1
       veclen = N3 * 9
       dims = [N, N, N]
-c
-c     autoblock for openmp, store in elblks (elem_block_data.mod)
-      matList = reshape( phase, (/N3/))
-      call inelbk( matList )
 c
 c     allocate variables in module
 c
@@ -225,6 +208,7 @@ c
         allocate ( dFm(N3, ndim2) )
         allocate ( barF(N3, ndim2) )
         allocate ( barF_t(N3, ndim2) )
+        allocate ( matList(N3) )
   
 c     allocate FFT related variables
         allocate ( real1(N3) )
@@ -238,6 +222,7 @@ c     allocate internal variables
         allocate( tmpReal(N3, ndim2) )
         allocate( tmpCplx(N3, ndim2) )
 
+      case ( 3 )
 c     allocate global arrays in Warp3d
         call history_cep_init()
         call stresses_init()
@@ -249,7 +234,7 @@ c
 c     deallocate variables in module
 c
         deallocate( Ghat4, K4, Fn, Fn1 )
-        deallocate( Pn, Pn1, DbarF, b, dFm )
+        deallocate( Pn, Pn1, DbarF, b, dFm, matList )
         deallocate( real1, cplx3half, cplx1half )
         deallocate( tmpPcg )
         deallocate( tmpReal, tmpCplx )

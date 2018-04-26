@@ -748,6 +748,7 @@ c
       integer :: info_vector(10)
       integer :: inter_mat
       logical :: is_inter_dmg
+      integer :: currmat  
 c
       is_inter_dmg = .false.
 c
@@ -800,7 +801,8 @@ c
       end if
 c
 c      mat_type = iprops(25,local_element_no)
-      mat_type = 1
+      currmat = matList(element_no)
+      mat_type = mat_props(currmat)%matnum
 c
 c              See if we're actually a interface-damaged model
 c

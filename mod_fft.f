@@ -30,7 +30,7 @@ c
 
 c     ================== Newton-Raphson loop control ==================
       real(8), save :: straininc, tolPCG, tolNR
-      integer, save :: maxIter, nstep
+      integer, save :: maxIter, nstep, tstep
       real(8), save :: F_total(9), mults(1000)
 
 c     ===================== global state variables =====================

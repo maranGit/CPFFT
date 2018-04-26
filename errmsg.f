@@ -32,9 +32,6 @@ c                        local
       case (2)
         write(out,9002)
  9002   format(/1x,'>>>>> Error: number of grids must be integer. '/)
-      case (3)
-        write(out,9003)
- 9003   format(/1x,'>>>>> Error: number of material must be integer. '/)
       case (4)
         write(out,9004)
  9004   format(/1x,'>>>>> Error: unrecogonized term. '/)
@@ -76,7 +73,18 @@ c                        local
  9014   format(/,1x,'>>>>> Error: Invalid step list.',/)
       case (15)
         write(out,9015)
- 9015   format(/,1x,'>>>>> Error: Invalid.',/)
+ 9015   format(/,1x,'>>>>> Error: Invalid constraints. Not a number.',/)
+      case (16)
+        write(out,9016) param
+ 9016   format(/,1x,'>>>>> Error: Invalid step: ',i6,' in loading.',/)
+      case (17)
+        write(out,9017) sparam
+ 9017   format(/,1x,'>>>>> Error: ',a24,' in nonlinear analysis '
+     &    'parameters must be a number',/)
+      case (18)
+        write(out,9018)
+ 9018   format(/,1x,'>>>>> Error: Unknown command in convergence
+     &    tolerance.',/)
       case default
         write(out,9999)
  9999   format(/,1x,'>>>>> Error: Unrecogonized option in errmsg.f',/)
