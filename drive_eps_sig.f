@@ -50,7 +50,7 @@ c     *                                                              *
 c     ****************************************************************
 c
       subroutine do_nleps_block( blk, iter, step )
-      use fft, only: Fn1, Pn1, Fn, K4, matList
+      use fft, only: Fn1, Pn1, Fn, K4, matList, mat_props, tstep
       use elem_block_data
       implicit none
       include 'common.main'
@@ -61,7 +61,7 @@ c             global
 c
 c             locals
 c
-      integer :: ii, span, felem, currElem
+      integer :: ii, span, felem, currElem, currmat
       integer :: info_vector(4)
       logical :: local_debug, include_qbar
       
@@ -73,6 +73,7 @@ c
       logical :: geo_non_flg
       integer :: now_thread
       integer, external :: OMP_GET_THREAD_NUM
+
 c                       try using stack
       real(8) :: cep_blk_n1(mxvl,nstr,nstr), P_blk_n1(mxvl,nstrs)
       real(8) :: detF(mxvl),fn1inv(mxvl,ndim,ndim),rnh(mxvl,ndim,ndim)
@@ -122,10 +123,15 @@ c     initialize local_work based on elblks(0,blk) and elblks(1,blk)
 c
       ngp = fftngp
       gpn = 1
-      mat_type = 1
       geo_non_flg = .true.
       span = elblks(0, blk)
       felem = elblks(1, blk)
+      currmat = matList(felem)
+      mat_type = mat_props(currmat)%matnum
+c
+c
+c                        initialize local work
+c
       local_work%blk = blk
       local_work%span = span
       local_work%felem = felem
@@ -342,59 +348,31 @@ c
 c
       subroutine mm01_hardCoded
       implicit none 
-      real(8) :: ym, nu, beta, tan_e, yld
-c
-c                hard code uddt, uncs and gp_dtemps
-c
-c     do ii = 1, span
-c       local_work%urcs_blk_n(ii,:,gpn) = 
-c    &            [63.369052D0,      -1.571854D-003, -1.571854D-003,
-c    &             -7.384044D-005,  9.452432D-006, -7.384048D-005,
-c    &              0.615002D0,       0.548073D0,       1.112306D-002]
-c       uddt(ii,:) = 
-c    &            [6.452949D-003, -1.940361D-003, -1.940361D-003,
-c    &             5.700588D-006,  2.689669D-007,  5.700588D-006]
-c     enddo
+      real(8) :: ym, nu, beta, tan_e, yld, alpha_x, alpha_y, alpha_z
       
       gp_dtemps = zero ! temperature change over step
-c     local_work%urcs_blk_n1(1,1,gpn) = zero ! cartesian stress for step n+1
       
-      ! material parameters
-      if ( matList( felem ) .eq. 1 ) then
-        ym = 24000.0D0 ! young's modulus in the block
-        nu = 0.3D0 ! poisson's ratio
-        beta = half ! isotropic/kinematic fractional factor for elements in the block
-        tan_e = 1000.0D0! plastic hardening modulus
-        yld = 200.0D0 ! uniaxial yield stress
-      else
-        ym = 12000.0D0 ! young's modulus in the block
-        nu = 0.3D0 ! poisson's ratio
-        beta = half ! isotropic/kinematic fractional factor for elements in the block
-        tan_e = 1000.0D0! plastic hardening modulus
-        yld = 100.0D0 ! uniaxial yield stress
-      endif
-      local_work%e_vec = ym ! young's modulus in the block
-      local_work%nu_vec = nu ! poisson's ratio
-      local_work%beta_vec = beta ! isotropic/kinematic fractional factor for elements in the block
-      local_work%tan_e_vec =  tan_e ! plastic hardening modulus
-      local_work%sigyld_vec = yld ! uniaxial yield stress
-      local_work%h_vec = tan_e*ym/(ym - tan_e) 
-      local_work%e_vec_n = ym
-      local_work%nu_vec_n = nu
+c                    grab material parameters from global to local
+      do ii = 1, span
+        currmat = matList(felem + ii - 1)
+        ym = mat_props(currmat)%dmatprp(1)
+        nu = mat_props(currmat)%dmatprp(2)
+        yld = mat_props(currmat)%dmatprp(3)
+        tan_e = mat_props(currmat)%dmatprp(4)
+        alpha_x = mat_props(currmat)%dmatprp(6)
+        alpha_y = mat_props(currmat)%dmatprp(7)
+        alpha_z = mat_props(currmat)%dmatprp(8)
+        beta = mat_props(currmat)%dmatprp(9)
+        local_work%e_vec(ii) = ym 
+        local_work%nu_vec(ii) = nu
+        local_work%beta_vec(ii) = beta
+        local_work%tan_e_vec(ii) =  tan_e
+        local_work%sigyld_vec(ii) = yld
+        local_work%h_vec(ii) = tan_e*ym/(ym - tan_e) 
+        local_work%e_vec_n(ii) = ym
+        local_work%nu_vec_n(ii) = nu
+      end do
 
-      ! all 11 history variables
-c     local_work%elem_hist(:,1,:) = 7.9899D-3 ! lamda * dt @ n
-c     local_work%elem_hist(:,1,:) = 7.9868D-003
-c     local_work%elem_hist(:,2,:) = 36.587D0
-c     local_work%elem_hist(:,3,:) = 1.1123D-002
-c     local_work%elem_hist(:,4,:) = 8.4488D-004
-c     local_work%elem_hist(:,5,:) = 303.03D0
-c     local_work%elem_hist(:,6,:) = zero
-c     local_work%elem_hist(:,7,:) = zero
-c     local_work%elem_hist(:,8,:) = zero
-c     local_work%elem_hist(:,9,:) = zero
-c     local_work%elem_hist(:,10,:) = zero
-c     local_work%elem_hist(:,11,:) = zero
       local_work%rtse = zero ! "relative" trial elastic stress rate
         
 c     other properties required by rstgp1
@@ -403,7 +381,7 @@ c     other properties required by rstgp1
       local_work%beta_fact = zero
       
 c     other properties required by drive_01_udate
-      local_work%dt = one
+      local_work%dt = tstep
       local_work%temperatures = 297.0D0
       local_work%temperatures_ref = 297.0D0
 

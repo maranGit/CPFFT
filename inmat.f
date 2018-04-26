@@ -83,6 +83,10 @@ c
           if ( .not. numd( mat_props(currmat)%dmatprp(8) ) ) then
             call errmsg(7,dum,'alphaz',dumr,dumd)
           end if
+        elseif ( matchs_exact('beta') ) then
+          if ( .not. numd( mat_props(currmat)%dmatprp(9) ) ) then
+            call errmsg(7,dum,'beta',dumr,dumd)
+          end if
         else
           call entits(unknown,nc)
           call errmsg(7,dum,unknown(1:nc),dumr,dumd)

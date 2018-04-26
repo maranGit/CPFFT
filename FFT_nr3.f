@@ -13,14 +13,15 @@ c     ****************************************************************
 c
       subroutine FFT_nr3()
       use fft, only: barF, DbarF, barF_t, b, Fn1, Fn, Pn1, Pn, dFm, 
-     &                straininc, tolPCG, tolNR, maxIter, nstep
+     &                straininc, tolPCG, tolNR, maxIter, nstep,
+     &                mults, F_total
       implicit none
       include 'common.main'
 
 c                    local
       real(8), parameter :: zero = 0.0D0, one = 1.0D0
       real(8) :: Fnorm, resfft
-      integer :: step, iiter
+      integer :: step, iiter, ii
       logical :: debug
 
       debug = .false.
@@ -28,16 +29,19 @@ c                    local
       do step = 1, nstep
 
         write(*,*) "Now starting step ",step
-c     macroscopic loading
-        barF = zero
-        barF( :, 9 ) = one
-        barF( :, 1 ) = one + dble(step) * straininc;
-        barF( :, 5 ) = one / ( one + dble(step) * straininc) ;
-        DbarF = barF - barF_t
-
-        b = zero
+c
+c              average strain increment
+c
+        DbarF = zero
+        do ii = 1, nstrs
+          DbarF( :, ii ) = F_total( ii ) * mults( step )
+        end do
+c
+c                      average strain
+        barF = barF_t + DbarF
 
 c     initial residual: distribute "barF" over grid using K4
+        b = zero
         call G_K_dF(DbarF, b, .true.)
         b = -b
 

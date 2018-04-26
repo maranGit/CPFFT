@@ -737,6 +737,7 @@ c
 c
       subroutine material_model_info( element_no, block_no, info_type,
      &                                 value )
+      use fft, only: matList, mat_props
       implicit none
       include 'common.main'
 c                      global data
@@ -814,24 +815,24 @@ c
       select case( mat_type )
       case( 1 )
         call mm01_set_sizes( info_vector )
-      case( 2 )
-        call mm02_set_sizes( info_vector )
-      case( 3 )
-        call mm03_set_sizes( info_vector )
-      case( 4 )
-        call mm04_set_sizes( info_vector )
-      case( 5 )
-        call mm05_set_sizes( info_vector )
-      case( 6 )
-        call mm06_set_sizes( info_vector )
-      case( 7 )
-        call mm07_set_sizes( info_vector )
-      case( 8 )
-        call umat_set_features( info_vector )
-      case( 9 )
-        call mm09_set_sizes( info_vector )
-      case(10 )
-        call mm10_set_sizes_special( info_vector, local_element_no )
+c     case( 2 )
+c       call mm02_set_sizes( info_vector )
+c     case( 3 )
+c       call mm03_set_sizes( info_vector )
+c     case( 4 )
+c       call mm04_set_sizes( info_vector )
+c     case( 5 )
+c       call mm05_set_sizes( info_vector )
+c     case( 6 )
+c       call mm06_set_sizes( info_vector )
+c     case( 7 )
+c       call mm07_set_sizes( info_vector )
+c     case( 8 )
+c       call umat_set_features( info_vector )
+c     case( 9 )
+c       call mm09_set_sizes( info_vector )
+c     case(10 )
+c       call mm10_set_sizes_special( info_vector, local_element_no )
       case default
         write(out,9000) 4
         call die_gracefully
