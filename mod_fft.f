@@ -6,6 +6,7 @@ c     ========================== problem size ==========================
       integer, save :: veclen
       integer, save :: dims(3)
       real(8), save :: l_x, l_y, l_z
+      integer, dimension(:), save, allocatable ::  incmap, incid
 
 c     ====================== material parameters ======================
 c

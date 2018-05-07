@@ -19,6 +19,7 @@ c                          local
       logical, external :: matchs_exact
 
       if ( matchs_exact('data') ) call DataOut()
+      if ( matchs_exact('model') ) call ModelOut()
       if ( matchs_exact('result') ) call ResultOut()
 
       return

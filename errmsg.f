@@ -85,6 +85,10 @@ c                        local
         write(out,9018)
  9018   format(/,1x,'>>>>> Error: Unknown command in convergence
      &    tolerance.',/)
+      case (19)
+        write(out,9019)
+ 9019   format(/,1x,'>>>>> Warning: patran file name is not provided, ',
+     &              'default name is used',/)
       case default
         write(out,9999)
  9999   format(/,1x,'>>>>> Error: Unrecogonized option in errmsg.f',/)

@@ -59,12 +59,17 @@ c
       implicit none
       integer :: isw
       logical, external :: label, endcrd, integr, numd
+      integer :: nc
+      character(len=80) :: name
 
       select case (isw)
       case (1)
         if(matchs('name',4)) call splunj
         if(label(dummy)) then
-c         name = 1
+          name= ' '
+          call entits(name,nc)
+          if(nc.gt.8) nc=8
+          stname(1:nc)= name(1:nc)
         else
           call errmsg(1,dum,dums,dumr,dumd)
         endif
