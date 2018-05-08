@@ -32,7 +32,8 @@ c
 c     ================== Newton-Raphson loop control ==================
       real(8), save :: straininc, tolPCG, tolNR
       integer, save :: maxIter, nstep, tstep
-      real(8), save :: F_total(9), mults(1000)
+      real(8), save :: F_total(9), mults(100000) ! mxstep from param_def
+      logical, save :: out_step(100000)
 
 c     ===================== global state variables =====================
       real(8), dimension(:,:), save, allocatable :: Ghat4, K4

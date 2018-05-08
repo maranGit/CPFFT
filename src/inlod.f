@@ -25,7 +25,7 @@ c                         local
 
       allocate( intlst(mxstep) )
       nstep = 0
-      mults = zero
+      mults(1:mxstep) = zero
 
       do while ( .true. )
         call readsc()

@@ -11,7 +11,6 @@
       logical, external :: matchs, matchs_exact, endfil
 
       readnew = .true.
-      call readsc()
       do while ( .true. )
         if(readnew) call readsc()
         if(matchs('project',7)) then
@@ -66,6 +65,7 @@ c
       case (1)
         if(matchs('name',4)) call splunj
         if(label(dummy)) then
+          stname = ' '
           name= ' '
           call entits(name,nc)
           if(nc.gt.8) nc=8

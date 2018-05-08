@@ -16,11 +16,11 @@ c
       subroutine oudrive()
       implicit none
 c                          local
-      logical, external :: matchs_exact
+      logical, external :: matchs_exact, matchs
 
       if ( matchs_exact('data') ) call DataOut()
       if ( matchs_exact('model') ) call ModelOut()
-      if ( matchs_exact('result') ) call ResultOut()
+      if ( matchs('results',6) ) call ResultOut()
 
       return
       end subroutine
@@ -82,7 +82,85 @@ c     *                       written by : RM                        *
 c     *                      write result data                       *
 c     ****************************************************************
       subroutine ResultOut()
+      use fft, only: out_step
       implicit none
+      include 'common.main'
+c
+c                             local
+c
+      integer, allocatable, dimension(:) :: intlst
+      integer   :: iplist, icn, step, param
+      integer   :: lenlst, errnum
+      integer   :: dum, dummy
+      real      :: dumr
+      real(8)   :: dumd
+      character :: dums*8
+      logical, external :: matchs
+      logical :: debug
 
-      return
-      end subroutine  
+      debug = .false.
+c
+c                      read step list
+c
+      if( .not. matchs('steps',4) ) then
+        call errmsg()
+        go to 9999
+      end if
+
+      allocate( intlst(mxstep) )
+      call scan()
+      call trlist(intlst,mxlsz,mxstep,lenlst,errnum)
+
+      if    ( errnum .eq. 2 ) then ! syntax error
+        call errmsg(14,dum,dums,dumr,dumd)
+        go to 9999
+      elseif( errnum .eq. 3 ) then ! list overflow
+        call errmsg(14,dum,dums,dumr,dumd)
+        go to 9999
+      elseif( errnum .eq. 4 ) then ! no integer list was found
+        call errmsg(14,dum,dums,dumr,dumd)
+        go to 9999
+      end if
+c
+c          errnum = 1, successfully read an element list
+c                  store steps in output list
+c
+      call backsp(1)
+      out_step(1:mxstep) = .false.
+c                     store constraints in step list
+      iplist = 1
+      icn = 0
+      do while ( iplist .ne. 0 )
+
+        call trxlst(intlst,lenlst,iplist,icn,step)
+
+        if( step .ge. mxstep ) then
+          param = mxstep
+          call errmsg(16,param,dums,dumr,dumd) ! too large step
+          go to 9999
+        end if
+c
+        if( step .le. 0 ) then
+          param = step
+          call errmsg(16,param,dums,dumr,dumd) ! negative step
+          go to 9999
+        end if
+
+        out_step(step) = .true.
+
+      end do
+
+      if(debug) then
+        write(out,9002)
+        do dum = 1, 10
+          write(out,9001) dum, out_step(dum)
+        end do
+      end if
+c
+      deallocate( intlst )
+c
+ 9999 return
+ 9002 format(1x,'Now checking output results',/)
+ 9001 format(1x,'IO status of step', i3, ':', l2,/)
+
+      end subroutine 

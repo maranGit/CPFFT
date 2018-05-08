@@ -34,7 +34,7 @@ c
 c
 c                  write patran flat file
 c
-      logical, external :: label
+      logical, external :: label, isstring, string
       integer :: nc
       character :: flat_name*80, tmpname*80
       logical :: text_file, stream_file, compressed
@@ -63,15 +63,15 @@ c
 c
 c                 read model file name
 c
-      if(label(dummy)) then
-        tmpname= ' '
-        call entits(tmpname,nc)
-        if(nc.gt.20) nc=20
-        flat_name(1:nc)= tmpname(1:nc)
+      flat_name = ' '
+      if ( label(dummy) ) then
+        call entits( flat_name, nc )
+      else if( string(dummy) ) then
+        call entits( flat_name, nc )
       else
         call errmsg(19,dum,dums,dumr,dumd)
         flat_name(1:14) = 'FFT_model_flat'
-      endif
+      end if
 c
 c                 model size (reference configuration)
 c
@@ -108,6 +108,8 @@ c
 
       call oumodel_flat( flat_name, text_file, stream_file, compressed, 
      &                   warp3d_convention, patran_convention  )
+
+      deallocate( x, ix )
 
       return
       end subroutine  
