@@ -60,7 +60,7 @@ c
       do nod = 1, nonode
         currdof = 3*nod - 2
         if( flat_file .and. text_file ) 
-     &    write(flat_file_number,930) u((currdof-2):currdof)
+     &    write(flat_file_number,930) u(currdof:(currdof+2))
  
       end do  ! on all nodes
 c
