@@ -95,7 +95,7 @@ c                        local
      &              'either flat file or patran file.',/)
       case (21)
         write(out,9021)
-     &  format(/,1x,'>>>>> Error: Invalid output option. Should be ',
+ 9021   format(/,1x,'>>>>> Error: Invalid output option. Should be ',
      &              'd, v, a, r or T.',/)
       case default
         write(out,9999)

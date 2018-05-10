@@ -22,7 +22,7 @@ c
 c
 c                 local
 c
-      integer :: dva, bnfile, fmfile, opt
+      integer :: dva, bnfile, fmfile, opt, nod, currdof
       integer :: flat_file_number, outype, quantity
       logical :: oubin, ouasc, flat_file, stream_file
       logical :: text_file, compressed
@@ -32,7 +32,7 @@ c                 store in common.main -> u
 c
       call f2disp(step)
 c
-c                 write result file
+c                 open result file
 c
       opt         = 1
       dva         = 1
@@ -51,10 +51,18 @@ c
      &             opt, use_mpi, myid, flat_file, stream_file,
      &             text_file, compressed, flat_file_number )
 
+c
+c                 write result file
+c
       outype      = 1
       quantity    = 1
-
       call ouddpa_flat_header(outype, quantity, flat_file_number)
+      do nod = 1, nonode
+        currdof = 3*nod - 2
+        if( flat_file .and. text_file ) 
+     &    write(flat_file_number,930) u((currdof-2):currdof)
+ 
+      end do  ! on all nodes
 c
 c                 close patran or flat file. done.
 c
@@ -62,7 +70,9 @@ c
      &             .false., myid, flat_file, stream_file, text_file, 
      &             compressed, flat_file_number )
 c     
+
       return
+ 930  format(3e15.6)
       end subroutine
 
 c     ****************************************************************
@@ -193,7 +203,7 @@ c
 c      
       if( .not. ok ) then
         k = 0
-        call errmsg3( 20 )
+        call errmsg( 20 )
         call die_abort
       end if
 c                     
@@ -219,7 +229,7 @@ c                       valid request for here?
 c
       if( dva .lt. 1 .or. dva .gt. 5 ) then
         k = 0
-        call errmsg3( 21 )
+        call errmsg( 21 )
         call die_abort
       end if
 c

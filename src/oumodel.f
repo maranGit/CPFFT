@@ -924,27 +924,7 @@ c     end do ! k
         if(ixl(k).ne.k) go to 900
       end do ! k
 
-      write(*,*) "Now checking xl: "
-      do i = 1,27
-        write(*,*) xl(1:3,i)
-      end do
-      write(*,*) "Now checking ixl: "
-      do i = 1,27
-        write(*,*) ixl(i)
-      end do
-      write(*,*) "Finish checking xl"
-
       call bcor3d(ixl,xl)
-
-      write(*,*) "Now checking xl: "
-      do i = 1,27
-        write(*,*) xl(1:3,i)
-      end do
-      write(*,*) "Now checking ixl: "
-      do i = 1,27
-        write(*,*) ixl(i)
-      end do
-      write(*,*) "Finish checking xl"
 
       n = ni
       mct = 0
@@ -965,7 +945,6 @@ c           Transform to global coordinates
 c             x(m,n) = xr(m)+tr(m,1)*xx(1)+tr(m,2)*xx(2)+tr(m,3)*xx(3)
               x(m,n) = xx(m)
             end do ! m
-            write(*,*) "x: ",x(1,n),", ss: ", ss(1)
 
             n = n + 1
             ss(1) = ss(1) + dr

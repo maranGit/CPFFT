@@ -248,20 +248,12 @@ c              compute uddt
 c
       call getrm1( span, qnhalf, rnh, 1 ) ! form qnhalf
       call qmply1( span, mxvl, nstr, qnhalf, ddt, uddt )
-      if(blk.eq.1) then
-        write(*,*) "uddt: "
-        write(*,'(6D12.4)') uddt(1,:)
-      endif
       call rstgp1_update_strains( span, mxvl, nstr, uddt,
      &                            local_work%ddtse(1,1,gpn) )
 c
 c     recover stress and stiffness
 c
       call rstgp1( local_work, uddt )
-      if(blk.eq.1) then
-        write(*,*) "Now checking cep: "
-        write(*,*) cep_blocks(blk)%vector(10)
-      endif
 c
 c     scatter local variables to global
 c
@@ -305,7 +297,6 @@ c     input:  cep_blk_n1(mxvl,nstr,nstr)
 c     output: A_blk_n1(mxvl,nstrs*nstrs)
       call cep2A( span, cs_blk_n1, cep_blk_n1, 
      &            fn1inv, detF, A_blk_n1, out)
-      if(blk.eq.1) write(*,*) "A: ", A_blk_n1(1,11)
       if(local_debug .and. blk .eq. 2) then
         write(*,*) " Now checking P of 2nd block:"
         write(*,'(9D12.4)') P_blk_n1(1,:)

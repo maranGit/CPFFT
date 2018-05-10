@@ -196,7 +196,7 @@ c
       logical :: local_debug
       logical, external :: isNonZero
 
-      local_debug = .true.
+      local_debug = .false.
 
 c               use CSR format to store A matrix
       pt(1:64) = 0
