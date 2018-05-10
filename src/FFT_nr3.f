@@ -14,7 +14,7 @@ c
       subroutine FFT_nr3()
       use fft, only: barF, DbarF, barF_t, b, Fn1, Fn, Pn1, Pn, dFm, 
      &                straininc, tolPCG, tolNR, maxIter, nstep,
-     &                mults, F_total
+     &                mults, F_total, out_step
       implicit none
       include 'common.main'
 
@@ -71,11 +71,18 @@ c     iterate as long as iterative update does not vanish
         enddo ! end N-R loop
 c
 c            update state variables
+c
         Fn = Fn1
         barF_t = barF
         Pn = Pn1
+c
 c            update global variables in eleblocks
+c
         call update
+c
+c            output file
+c
+        if(out_step(step)) call ouresult(step)
 
       enddo ! end all steps
 c

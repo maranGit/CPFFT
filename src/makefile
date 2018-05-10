@@ -56,7 +56,9 @@ OBJ = $(MODS) \
 	$(OD)/indypm.o \
 	$(OD)/oudriv.o \
 	$(OD)/ouneut.o \
-	$(OD)/oumodel.o
+	$(OD)/oumodel.o \
+	$(OD)/ouresult.o \
+	$(OD)/f2disp.o
 #
 #                          link
 #

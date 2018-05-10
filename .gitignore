@@ -29,6 +29,7 @@
 # Executables
 *.exe
 *.out
+*.exo
 *.app
 
 # temporary files from VIM

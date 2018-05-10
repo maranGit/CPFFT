@@ -89,6 +89,14 @@ c                        local
         write(out,9019)
  9019   format(/,1x,'>>>>> Warning: patran file name is not provided, ',
      &              'default name is used',/)
+      case (20)
+        write(out,9020)
+ 9020   format(/,1x,'>>>>> Error: Invalid file option. Should be ',
+     &              'either flat file or patran file.',/)
+      case (21)
+        write(out,9021)
+     &  format(/,1x,'>>>>> Error: Invalid output option. Should be ',
+     &              'd, v, a, r or T.',/)
       case default
         write(out,9999)
  9999   format(/,1x,'>>>>> Error: Unrecogonized option in errmsg.f',/)
@@ -96,4 +104,3 @@ c                        local
 
       return
       end
-
