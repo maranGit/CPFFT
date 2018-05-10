@@ -26,7 +26,12 @@ c                         local
       logical promsw,echosw,comsw,atrdsw,eolsw,eofsw,menusw,ptsw,signsw
       
       integer :: i
-
+c
+c                       initialize common.main
+c
+      use_mpi = .false.
+      myid = 0
+      ltmstp = 0
 c
 c                       initialize the file input and output parameters
 c
@@ -244,6 +249,7 @@ c
         end do
         deallocate( cep_blocks )
         deallocate( barF, barF_t )
+        deallocate( incid, incmap )
 
       case default
         write(*,*) ">>Error: invalid option. Job terminated"
