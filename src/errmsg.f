@@ -97,6 +97,10 @@ c                        local
         write(out,9021)
  9021   format(/,1x,'>>>>> Error: Invalid output option. Should be ',
      &              'd, v, a, r or T.',/)
+      case (22)
+        write(out,9022)
+ 9022   format(/,1x,'>>>>> Error: Invalid output option.',
+     &              'only support flat text file for now.',/)
       case default
         write(out,9999)
  9999   format(/,1x,'>>>>> Error: Unrecogonized option in errmsg.f',/)

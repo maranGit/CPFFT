@@ -6,12 +6,46 @@ c     *                       written by : RM                        *
 c     *                                                              *
 c     *                   last modified : 5/07/2018 RM               *
 c     *                                                              *
-c     *           drive nodal and elemental results output           *
-c     *                                                              *
 c     ****************************************************************
 c
 c
       subroutine ouresult(step)
+      implicit none
+c
+c                 global
+c
+      integer :: step
+c
+c                 print nodal displacement
+c
+      call oudisp( step )
+c
+c                 print element stress/strain
+c
+      call ouelestr( step, 1 ) ! strain
+      call ouelestr( step, 2 ) ! stress
+c
+c                 print element state variables
+c
+      call oustates()
+
+      return
+
+      end subroutine
+c
+c     ****************************************************************
+c     *                                                              *
+c     *                      subroutine oudisp                       *
+c     *                                                              *
+c     *                       written by : RM                        *
+c     *                                                              *
+c     *                   last modified : 5/11/2018 RM               *
+c     *                                                              *
+c     *                drive nodal displacement output               *
+c     *                                                              *
+c     ****************************************************************
+c
+      subroutine oudisp(step)
       use fft, only: N
       implicit none
       include 'common.main'
@@ -26,13 +60,14 @@ c
       integer :: flat_file_number, outype, quantity
       logical :: oubin, ouasc, flat_file, stream_file
       logical :: text_file, compressed
+      real(8), parameter :: small_tol=1.0d-30, zero=0.0d0
 c
 c                 compute nodal displacement from F
 c                 store in common.main -> u
 c
       call f2disp(step)
 c
-c                 open result file
+c                 hard code output options
 c
       opt         = 1
       dva         = 1
@@ -46,17 +81,23 @@ c
       text_file   = .true.
       stream_file = .false.
       compressed  = .false.
-
+c
+c                 open output file
+c
       call ouocdd( dva, step, oubin, ouasc, bnfile, fmfile,
      &             opt, use_mpi, myid, flat_file, stream_file,
      &             text_file, compressed, flat_file_number )
 
 c
-c                 write result file
+c                 print nodal displacement
+c                 copied from warp3d ouddpa.f
 c
       outype      = 1
       quantity    = 1
       call ouddpa_flat_header(outype, quantity, flat_file_number)
+
+      where( abs( u ) .lt. small_tol ) u = zero
+
       do nod = 1, nonode
         currdof = 3*nod - 2
         if( flat_file .and. text_file ) 
@@ -64,17 +105,117 @@ c
  
       end do  ! on all nodes
 c
-c                 close patran or flat file. done.
+c                 close output file
 c
       call ouocdd( dva, step, oubin, ouasc, bnfile, fmfile, 2,
      &             .false., myid, flat_file, stream_file, text_file, 
      &             compressed, flat_file_number )
-c     
 
       return
- 930  format(3e15.6)
-      end subroutine
 
+ 930  format(3e15.6)
+
+      end subroutine
+c
+c     ****************************************************************
+c     *                                                              *
+c     *                      subroutine ouelestr                     *
+c     *                                                              *
+c     *                       written by : RM                        *
+c     *                                                              *
+c     *                   last modified : 5/11/2018 RM               *
+c     *                                                              *
+c     *                 drive element stress/strain output           *
+c     *                                                              *
+c     ****************************************************************
+c
+      subroutine ouelestr(step, data_type)
+      use elem_block_data, only: urcs_n1_blocks, eps_n1_blocks
+      implicit none
+      include 'common.main'
+c
+c                 global
+c
+      integer :: step, data_type
+c
+c                 local
+c
+      integer :: flat_file_number, fileno, quantity
+      logical :: flat_file, text_file, stream_file
+      logical :: oubin, ouasc, compressed
+      character(len=1) dummy_char
+      real(8), parameter :: small_tol=1.0d-30, zero=0.0d0
+      integer, external :: warp3d_get_device_number
+      logical :: stress
+c
+c                 hard code output options
+c
+      ltmstp      = step
+      myid        = 0
+      oubin       = .false.
+      ouasc       = .false.
+      flat_file   = .true.
+      text_file   = .true.
+      stream_file = .false.
+      compressed  = .false.
+      stress      = .false.
+      if(data_type .eq. 2) stress = .true.
+c
+c                        open output file
+c
+      call ouocst_elem( data_type, ltmstp, oubin, ouasc, fileno, 1,
+     &                  use_mpi, myid, flat_file,
+     &                  stream_file, text_file, compressed,
+     &                  flat_file_number, dummy_char )
+c
+c                        header info files
+c
+      if( flat_file .and. text_file ) then
+        quantity = 1
+        if( stress ) quantity = 2
+        call ouddpa_flat_header( 3, quantity, flat_file_number )
+      else
+        call errmsg(22)
+        call die_abort()
+      end if
+c
+c                        write stress/strain data
+c
+c
+c                        close output file
+c
+      call ouocst_elem( data_type, ltmstp, oubin, ouasc, fileno, 2,
+     &                  use_mpi, myid, flat_file,
+     &                  stream_file, text_file, compressed,
+     &                  flat_file_number, dummy_char )
+      return
+
+      end subroutine
+c
+c     ****************************************************************
+c     *                                                              *
+c     *                      subroutine oustates                     *
+c     *                                                              *
+c     *                       written by : RM                        *
+c     *                                                              *
+c     *                   last modified : 5/11/2018 RM               *
+c     *                                                              *
+c     *                 print element state results                  *
+c     *                 copied from warp3d oustates.f                *
+c     *                 current configuration                        *
+c     *                                                              *
+c     ****************************************************************
+c
+      subroutine oustates
+      implicit none
+c
+c                 print element state results
+c                 copied from warp3d oustates.f
+c                 current configuration
+c
+      return
+      end subroutine
+c
 c     ****************************************************************
 c     *                                                              *
 c     *             subroutine ouddpa_flat_header                    *
@@ -297,7 +438,214 @@ c
  9000 format(i5.5)
  9100 format(i4.4)
       end
+c
+c     ****************************************************************
+c     *                                                              *
+c     *                      subroutine ouocst_elem                  *
+c     *                                                              *
+c     *                       written by : kck                       *
+c     *                                                              *
+c     *                   last modified : 2/2/2017 rhd               *
+c     *                                                              *
+c     *     this subroutine opens or closes files for (1) Patran     *
+c     *     binary or formatted output, or (2) flat file with        *
+c     *     stream or text form                                      *
+c     *                                                              *
+c     ****************************************************************
+c
+c
+      subroutine ouocst_elem( data_type, stepno, oubin, ouasc, fileno, 
+     &                        opt, use_mpi, myid, flat_file,
+     &                        stream_file, text_file, compressed,
+     &                        flat_file_number, matl_name_id  )
+      implicit none
+c   
+c                       parameters
+c
+      integer :: data_type, stepno, fileno, opt,  myid,
+     &           flat_file_number, dot_pos 
+      logical :: oubin, ouasc, use_mpi,
+     &           flat_file, stream_file, text_file, compressed
+      character(len=*) :: matl_name_id
+c   
+c                       locals
+c
+      integer :: now_len
+      logical :: ok, patran_file
+      character(len=80) :: command
+      character(len=80), save :: flat_name
+c
+c                       branch on whether files are to be opened or  
+c                       closed.
+c
+c                       data_type: 1 = strains, 2 = stresses, 
+c                                  3 = material states
+c
+c                       file_no is only for Patran results. calling 
+c                       routine must pass value.
+c
+c                       flat_file_number. routine here sets value
+c                       on file open. calling routine must send
+c                       value on close
+c
+      patran_file = oubin .or. ouasc
+c      
+      select case( opt )
+c
+      case( 1 )   ! open files
+        if( patran_file ) call ouocst_elem_pat_file
+        if( flat_file )   call ouocst_elem_flat_file
+        ok = patran_file .or. flat_file
+        if( .not. ok ) then
+          write(*,9000) opt
+          call die_abort
+        end if  
+c
+      case( 2 )  !  close files
+        ok = patran_file .or. flat_file
+        if( .not. ok ) then
+          write(*,9000) opt
+          call die_abort
+        end if  
+c
+        if( patran_file ) then
+          close( unit=fileno, status='keep' )
+          return
+        end if
+c      
+        close( unit=flat_file_number, status='keep' )
+        if( stream_file ) return
+        if( compressed ) then
+          command(1:) = ' '
+          now_len = len_trim( flat_name )
+          command(1:) = 'gzip ' // flat_name(1:now_len)
+!win          result = system( command )
+        end if
+c          
+      end select
+      
+      return
+ 9000 format('>> FATAL ERROR: ouocst_elem. opt: ',i2,
+     & /,    '                job aborted',// )      
+c
+      contains
+c     ========  
+c
+c     ****************************************************************
+c     *  (in contains)  subroutine ouocst_elem_pat_file              *
+c     ****************************************************************
+c
+      subroutine ouocst_elem_pat_file
+      implicit none
+c
+      integer :: now_len
+      character :: patran_file_name*80, strtnm*4, form_type*20     
+c
+c                       attach patran binary or ascii file
+c                       
+      if( oubin ) then
+         strtnm = 'webe'
+         if( data_type .eq. 2 ) strtnm = 'webs'
+         if( data_type .eq. 3 ) strtnm = 'webm'
+         form_type = "unformatted"
+      else ! ascii
+         strtnm = 'wefe'
+         if( data_type .eq. 2 ) strtnm = 'wefs'
+         if( data_type .eq. 3 ) strtnm = 'wefm'
+         form_type = "formatted"
+      end if
+c      
+      patran_file_name = " "
+      patran_file_name(1:4) = strtnm
+      write(patran_file_name(5:),9000) stepno
+c      
+      if( data_type .eq. 3 .and. matl_name_id(1:1) .ne. " " )
+     &     patran_file_name(10:) = "_" // matl_name_id(1:)
+c     
+      if( use_mpi ) then
+         dot_pos = len_trim( patran_file_name ) + 1
+         patran_file_name(dot_pos:dot_pos) = "."
+         write(patran_file_name(dot_pos+1:),9010) myid
+      end if  
+c
+      open(unit=fileno,file=patran_file_name,status='unknown',
+     &     access='sequential', form=form_type )
+c
+      return
+c      
+ 9000 format( i5.5 )
+ 9010 format( i4.4 )
+c
+      end subroutine ouocst_elem_pat_file
+c
+c
+c     ****************************************************************
+c     *  (in contains)  subroutine ouocst_elem_flat_file             *
+c     ****************************************************************
+c
+      subroutine ouocst_elem_flat_file
+      implicit none
+c
+      integer :: now_len, dot_pos
+      integer, external :: warp3d_get_device_number
+!win      integer, external  :: system
+      character :: strtnm*4, form_type*20, access_type*20
+c      
+      flat_file_number = warp3d_get_device_number()
+      if( flat_file_number .eq. -1 ) then
+        write(*,9110)
+        call die_gracefully
+      end if
+c
+      flat_name(1:) = ' '
+      flat_name(1:3) = 'wee' 
+      if( data_type .eq. 2 ) flat_name(1:3) ='wes'
+      if( data_type .eq. 3 ) flat_name(1:3) ='wem'
+      write(flat_name(4:),9000) stepno
+c      
+      if( flat_file .and. text_file ) then
+         flat_name(9:) = '_text'
+         if( data_type .eq. 3 .and. matl_name_id(1:1) .ne. " " ) then
+            now_len = len_trim( flat_name )
+            flat_name(now_len+1:) = "_" // matl_name_id(1:)
+         end if  
+         if( use_mpi ) then
+           dot_pos = len_trim( flat_name ) + 1
+           flat_name(dot_pos:dot_pos) = "."
+           write(flat_name(dot_pos+1:),9010) myid
+         end if  
+         access_type = 'sequential'
+         form_type   = 'formatted'
+      end if
+c
+      if( flat_file .and. stream_file ) then
+         flat_name(9:) = '_stream'
+         if( data_type .eq. 3 .and. matl_name_id(1:1) .ne. " " ) then
+            now_len = len_trim( flat_name )
+            flat_name(now_len+1:) = "_" // matl_name_id(1:)
+         end if 
+         if( use_mpi ) then
+           dot_pos = len_trim( flat_name ) + 1
+           flat_name(dot_pos:dot_pos) = "."
+           write(flat_name(dot_pos+1:),9010) myid
+         end if  
+         access_type = 'stream'
+         form_type   = 'unformatted'
+      end if
 
+      open( unit=flat_file_number,file=flat_name, status='unknown',
+     &     access=access_type, form=form_type ) 
+c
+      return      
+c
+ 9000 format( i5.5 )
+ 9010 format( i4.4 )
+ 9110 format(/1x,
+     &'>>>>> FATAL ERROR: routine ouocst_elem_flat_file',
+     & /,16x,'Job terminated....'/)
+c
+      end subroutine ouocst_elem_flat_file
+      end subroutine ouocst_elem
 c     ****************************************************************
 c     *                                                              *
 c     *                      subroutine ouflnm                       *
