@@ -8,16 +8,24 @@ MVC      = /bin/mv -f
 #
 #               mkl library
 #
-mkllib=$INTEL/mkl/lib/em64t
-mklinc=$INTEL/mkl/include
-LIBMKL= -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lmkl_lapack95_lp64
+MKLROOT  = $(INTEL)/mkl
+LIBMKL   =  -L$(MKLROOT)/lib/intel64 -lmkl_intel_lp64 -lmkl_core \
+          -lmkl_intel_thread -lpthread -lm  
+LIBS     = $(LIBMKL)
 #
-#               openmp option
+#               compiler option
 #
-OPENMP     = -qopenmp
+OPENMP   = -qopenmp
 COMPILER = ifort
-foption= -xHOST -ip -fpconstant -traceback -align array64byte \
-				 -qopenmp -reentrancy -no-inline-factor
+foption  = -xHOST -ip -fpconstant -traceback -align array64byte \
+				 -qopenmp -reentrancy -no-inline-factor -module $(OD)
+FCOPTS   = -O3 -ip -fpconstant -fixed -72 -g -traceback -ftz\
+				 -module $(OD) -I$(MKLROOT)/include $(OPENMP)
+#
+#               compile and link
+#
+FOR      = $(COMPILER) $(foption)
+LINK     = $(COMPILER) $(FCOPTS)
 #
 #               all target files
 #
@@ -63,8 +71,7 @@ OBJ = $(MODS) \
 #                          link
 #
 FFT_finite_3d.exe: $(OBJ)
-	$(COMPILER) -o $@ -O3 $(OBJ) -I$(mklinc) -L$(mkllib) \
-	$(LIBMKL) -g -traceback -gen-interfaces -warn interfaces -module $(OD) $(OPENMP)
+	$(LINK) $(FCOPTS) $(OBJ) $(LIBS) -o $@
 	$(MVC) $@ ./../obj_linux/$@
 	chmod ugo+rx  ./../obj_linux/$@
 #
@@ -76,23 +83,23 @@ FFT_finite_3d.exe: $(OBJ)
 #
 $(OD)/%.o: %.f $(MODS) $(INCLUDES)	 
 	$(RMC)  $@
-	$(COMPILER) $(foption) $< -c -o $@
+	$(FOR)  $< -c -o $@
 #
 #    ------   system level module files ----------------
 #             =========================
 #
 $(OD)/mod_eleblocks$O : mod_eleblocks.f
 	$(RMC)  $@
-	$(COMPILER) $(foption) $< -c -o $@
+	$(FOR)  $< -c -o $@
 $(OD)/mod_fft$O: mod_fft.f
 	$(RMC)  $@
-	$(COMPILER) $(foption) $< -c -o $@
+	$(FOR)  $< -c -o $@
 $(OD)/mkl_dfti$O: mkl_dfti.f
 	$(RMC)  $@
-	$(COMPILER) $(foption) $< -c -o $@
+	$(FOR)  $< -c -o $@
 $(OD)/mod_file_info$O: mod_file_info.f
 	$(RMC)  $@
-	$(COMPILER) $(foption) $< -c -o $@
+	$(FOR)  $< -c -o $@
 #
 #                        remove
 #
