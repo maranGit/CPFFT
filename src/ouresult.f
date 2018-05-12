@@ -145,8 +145,13 @@ c
       logical :: oubin, ouasc, compressed
       character(len=1) dummy_char
       real(8), parameter :: small_tol=1.0d-30, zero=0.0d0
-      integer, external :: warp3d_get_device_number
       logical :: stress
+      double precision :: elem_results(mxvl,mxstmp)
+      integer, external :: warp3d_get_device_number
+      integer :: num_short_strain
+      integer :: num_short_stress
+      integer :: blk, span, felem, num_vals
+      integer :: i
 c
 c                 hard code output options
 c
@@ -159,7 +164,11 @@ c
       stream_file = .false.
       compressed  = .false.
       stress      = .false.
+      num_short_stress = 11
+      num_short_strain = 7
       if(data_type .eq. 2) stress = .true.
+      num_vals = num_short_strain + 15
+      if( stress ) num_vals = num_short_stress + 15
 c
 c                        open output file
 c
@@ -179,8 +188,55 @@ c
         call die_abort()
       end if
 c
-c                        write stress/strain data
+c                        write element data records into Patran or
+c                        flat file. For Patran file(s), the element 
+c                        type is hard coded into this line as a 
+c                        hex element
 c
+c                        zero small values to prevent 3-digit exponents
+c                        in formatted files
+c
+c     copy stress/strain from pointer array to local stack
+      if( stress ) then ! output stress
+
+        do blk = 1, nelblk
+
+          elem_results = zero
+          span = elblks(0, blk)
+          felem = elblks(1, blk)
+
+          ! ngp = 1, so easier
+c         format of urcs_n1_blocks: nstrs * ngp * mxvl
+          do i = 1, mxvl
+            elem_results(i,1:nstr) 
+     &       = urcs_n1_blocks(blk)%ptr((i*nstrs-nstrs+1):(i*nstrs-3))
+          end do
+
+          call oupestr(span, num_vals, elem_results(1,1), 
+     &                 flat_file_number)
+
+        end do ! loop over block
+
+      else ! output strain
+        do blk = 1, nelblk
+
+          elem_results = zero
+          span = elblks(0, blk)
+          felem = elblks(1, blk)
+
+          ! ngp = 1, so easier
+c         format of eps_n1_blocks: nstr * ngp * mxvl
+          do i = 1, mxvl
+            elem_results(i,1:nstr)
+     &       = eps_n1_blocks(blk)%ptr((i*nstr-nstr+1):(i*nstr))
+          end do
+
+          call oupestr(span, num_vals, elem_results(1,1),
+     &                 flat_file_number)
+
+        end do ! loop over block
+
+      end if
 c
 c                        close output file
 c
@@ -190,6 +246,46 @@ c
      &                  flat_file_number, dummy_char )
       return
 
+      end subroutine
+c
+c     ****************************************************************
+c     *                                                              *
+c     *                      subroutine oupestr                      *
+c     *                                                              *
+c     *                       written by : RM                        *
+c     *                                                              *
+c     *                   last modified : 5/12/2018 RM               *
+c     *                                                              *
+c     *            print element stress/strain to result file        *
+c     *                  format is flat text file                    *
+c     *                                                              *
+c     ****************************************************************
+c
+      subroutine oupestr(span, n, str, fid)
+      implicit none
+      include 'common.main'
+c                        global
+      integer :: span, n, fid
+      real(8) :: str(mxvl, mxstmp)
+c                        local
+      integer :: elem
+      real(8), parameter :: small_tol=1.0d-30, zero=0.0d0
+
+c     zero small values
+      where( abs(str) .lt. small_tol ) str = zero
+
+c     write to output file ( flat text )
+         do elem = 1, span
+           if( use_mpi ) then
+             write(fid,9100) elem, str(elem,1:n)
+           else
+             write(fid,9200) str(elem,1:n)
+           end if
+         end do
+
+      return
+ 9100 format(i8,30d15.6)
+ 9200 format(30e15.6)
       end subroutine
 c
 c     ****************************************************************
