@@ -101,6 +101,10 @@ c                        local
         write(out,9022)
  9022   format(/,1x,'>>>>> Error: Invalid output option.',
      &              'only support flat text file for now.',/)
+      case (23)
+      write(out,9023) sparam
+ 9023 format(/1x,'>>>>> error: a real or integer number is ',
+     &           'expected for ',a4/)
       case default
         write(out,9999)
  9999   format(/,1x,'>>>>> Error: Unrecogonized option in errmsg.f',/)

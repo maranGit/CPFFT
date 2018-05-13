@@ -33,7 +33,8 @@ INCLUDES = common.main param_def include_sig_up
 MODS = $(OD)/mod_fft.o \
 	$(OD)/mod_eleblocks.o \
 	$(OD)/mkl_dfti.o \
-	$(OD)/mod_file_info.o
+	$(OD)/mod_file_info.o \
+	$(OD)/mod_crystals.o
 OBJ = $(MODS) \
 	$(OD)/FFT_finite_3d.o \
 	$(OD)/scan.o \
@@ -66,7 +67,8 @@ OBJ = $(MODS) \
 	$(OD)/ouneut.o \
 	$(OD)/oumodel.o \
 	$(OD)/ouresult.o \
-	$(OD)/f2disp.o
+	$(OD)/f2disp.o \
+	$(OD)/incrystal.o
 #
 #                          link
 #
@@ -100,6 +102,10 @@ $(OD)/mkl_dfti$O: mkl_dfti.f
 $(OD)/mod_file_info$O: mod_file_info.f
 	$(RMC)  $@
 	$(FOR)  $< -c -o $@
+$(OD)/mod_crystals$O: mod_crystals.f param_def common.main
+	$(RMC)  $@
+	$(FOR)  $< -c -o $@
+
 #
 #                        remove
 #

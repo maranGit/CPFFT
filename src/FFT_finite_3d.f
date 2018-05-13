@@ -19,6 +19,8 @@
           call ProcessInput(2)
         elseif(matchs('material',8)) then
           call ProcessInput(3)
+        elseif(matchs('crystal',7)) then
+          call ProcessInput(14)
         elseif(matchs('sizes',5)) then
           call ProcessInput(4)
         elseif(matchs('elements',8)) then
@@ -43,6 +45,7 @@
           exit
         else
           call errmsg(4,dum,dums,dumr,dumd)
+          readnew = .true.
         end if
       end do
 c
@@ -56,7 +59,10 @@ c
       subroutine ProcessInput(isw)
       use fft
       implicit none
+
+c                        global
       integer :: isw
+c                        local
       logical, external :: label, endcrd, integr, numd
       integer :: nc
       character(len=80) :: name
@@ -81,6 +87,7 @@ c
             if(.not.integr(N)) call errmsg(2,dum,dums,dumr,dumd)
           else
             call errmsg(4,dum,dums,dumr,dumd)
+            call scan()
           endif
         enddo
         call FFT_init()
@@ -99,6 +106,7 @@ c
             if(.not.numd(l_z)) call errmsg(4,dum,dums,dumr,dumd)
           else
             call errmsg(4,dum,dums,dumr,dumd)
+            call scan()
           endif
         end do
         readnew = .true.
@@ -164,6 +172,9 @@ c
         call fftAllocate( 2 )
       case (13)
         call fftAllocate( 2 )
+      case (14)
+        call incrystal(out)
+        readnew = .true.
       case default
         call errmsg(4,dum,dums,dumr,dumd)
       end select
