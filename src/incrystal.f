@@ -33,11 +33,11 @@ c
 c               make sure we have a valid crystal number
 c
       if( .not. numi(cnum) ) then
-            call errmsg(350,dumi,dums,dumr,dumd)
+            call errmsg(24,dumi,dums,dumr,dumd)
             return
       end if
       if( (cnum .gt. max_crystals) .or. (cnum .lt. 1) ) then
-            call errmsg(351,cnum,dums,dumr,dumd)
+            call errmsg(25,cnum,dums,dumr,dumd)
             return
       end if
       call readsc()
@@ -45,7 +45,7 @@ c
 c               next line should start with properties
 c
       if(  .not. matchs('properties',10) ) then
-            call errmsg(352,dumi,dums,dumr,dumd)
+            call errmsg(26,dumi,dums,dumr,dumd)
             return
       end if
 c      
@@ -56,7 +56,7 @@ c
       do while( reading )
        if(  matchs_exact('slip_type') ) then
              if( .not. label(dumi) ) then
-                   call errmsg(353,dumi,dums,dumr,dumd)
+                   call errmsg(27,dumi,dums,dumr,dumd)
              else
                    lab = ' '
                    call entits(lab,nc)
@@ -80,11 +80,11 @@ c
              elseif( lab(1:nc) .eq. 'halite') then
                    c_array(cnum)%slip_type = 11
              else
-                   call errmsg(353,dumi,dums,dumr,dumd)
+                   call errmsg(27,dumi,dums,dumr,dumd)
              end if
        elseif(  matchs_exact('elastic_type') ) then
              if(  .not. label(dumi) ) then
-                   call errmsg(354,dumi,dums,dumr,dumd)
+                   call errmsg(28,dumi,dums,dumr,dumd)
              else
                    lab = ' '
                    call entits(lab,nc)
@@ -96,11 +96,11 @@ c
              elseif( lab(1:nc) .eq. 'ti6242') then
                    c_array(cnum)%elastic_type = 3
              else
-                   call errmsg(354,dumi,dums,dumr,dumd)
+                   call errmsg(28,dumi,dums,dumr,dumd)
              end if
        elseif(  matchs_exact('alter_mode') ) then
              if( .not. label(dumi) ) then
-                   call errmsg(364,dumi,dums,dumr,dumd)
+                   call errmsg(28,dumi,dums,dumr,dumd)
              else
                    lab = ' '
                    call entits(lab,nc)
@@ -114,7 +114,7 @@ c
              elseif( lab(1:nc) .eq. 'off') then
                    c_array(cnum)%alter_mode = .false.
              else
-                   call errmsg(364,dumi,dums,dumr,dumd)
+                   call errmsg(29,dumi,dums,dumr,dumd)
              end if
 c
 c elastic parameters
@@ -327,7 +327,7 @@ c
                 elseif( lab(1:nc) .eq. 'halite') then
                    c_array(cnum)%h_type = 14
                 else
-                   call errmsg(364,dumi,dums,dumr,dumd)
+                   call errmsg(29,dumi,dums,dumr,dumd)
                 end if
           end if
 c
@@ -933,7 +933,7 @@ c
                 elseif( lab(1:nc) .eq. 'tr') then
                    c_array(cnum)%solver = .false.
                 else
-                   call errmsg(364,dumi,dums,dumr,dumd)
+                   call errmsg(29,dumi,dums,dumr,dumd)
                 end if
           end if
        elseif(  matchs_exact('strategy') ) then
@@ -947,7 +947,7 @@ c
                 elseif( lab(1:nc) .eq. 'cubic') then
                    c_array(cnum)%strategy = .false.
                 else
-                   call errmsg(364,dumi,dums,dumr,dumd)
+                   call errmsg(29,dumi,dums,dumr,dumd)
                 end if
           end if
 c
@@ -976,7 +976,7 @@ c
                 elseif( lab(1:nc) .eq. 'off') then
                    c_array(cnum)%gpall = .false.
                 else
-                   call errmsg(364,dumi,dums,dumr,dumd)
+                   call errmsg(29,dumi,dums,dumr,dumd)
                 end if
           end if
        elseif(  matchs_exact('gpp') ) then
@@ -990,7 +990,7 @@ c
              call readsc()
        else
              call entits(lab,nc)
-             call errmsg(355,dumi,lab(1:nc),dumr,dumd)
+             call errmsg(29,dumi,lab(1:nc),dumr,dumd)
              
              call scan()
              cycle

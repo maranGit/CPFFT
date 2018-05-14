@@ -102,9 +102,31 @@ c                        local
  9022   format(/,1x,'>>>>> Error: Invalid output option.',
      &              'only support flat text file for now.',/)
       case (23)
-      write(out,9023) sparam
- 9023 format(/1x,'>>>>> error: a real or integer number is ',
-     &           'expected for ',a4/)
+        write(out,9023) sparam
+ 9023   format(/1x,'>>>>> Error: a real or integer number is ',
+     &           'expected for ',a5,/)
+      case (24)
+        write(out,9024)
+ 9024   format(/,1x,'>>>>> Error: CRYSTAL should be followed ',
+     &              'by an integer.',/)
+      case (25)
+        write(out,9025)
+ 9025   format(/,1x,'>>>>> Error: Invalid crystal ID: ',
+     &              'too large or too small.',/)
+      case (26)
+        write(out,9026)
+ 9026   format(/1x,'>>>>> Error: First line in CRYSTAL block ',
+     &           'should start with PROPERTIES.',/)
+      case (27)
+        write(out,9027)
+ 9027   format(/1x,'>>>>> Error: No slip type detected.',/)
+      case (28)
+        write(out,9028)
+ 9028   format(/1x,'>>>>> Error: No elastic type detected.',/)
+      case (29)
+        write(out,9029)
+ 9029   format(/1x,'>>>>> Error: Unrecogonized key word detected ',
+     &             'in CRYSTAL.',/)
       case default
         write(out,9999)
  9999   format(/,1x,'>>>>> Error: Unrecogonized option in errmsg.f',/)

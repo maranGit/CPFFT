@@ -147,6 +147,7 @@ c     hard code NR loop parameters in fft.mod
       if ( mod(N, 2) .eq. 0 ) Nhalf = N / 2 + 1
       veclen = N3 * 9
       dims = [N, N, N]
+      noelem = N3
 c
 c     allocate variables in module
 c
