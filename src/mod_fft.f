@@ -29,6 +29,21 @@ c
       character(len=20), save, 
      &   allocatable, dimension(:) :: material_model_names
 
+c
+c
+c                 material properties array. these sizes correspond to
+c                 mxmtpr x  mxmat in param_def and must always
+c                 be consistent !
+c
+      integer          :: imatprp(300,500)
+      real             :: matprp(300,500)
+      logical          :: lmtprp(300,500)
+      equivalence (matprp,lmtprp)
+      equivalence (matprp,imatprp)
+      double precision :: dmatprp(300,500)
+      character(len=24), dimension(300,500) :: smatprp
+c
+c
 c     ================== Newton-Raphson loop control ==================
       real(8), save :: straininc, tolPCG, tolNR
       integer, save :: maxIter, nstep, tstep
