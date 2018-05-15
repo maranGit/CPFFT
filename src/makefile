@@ -68,7 +68,13 @@ OBJ = $(MODS) \
 	$(OD)/oumodel.o \
 	$(OD)/ouresult.o \
 	$(OD)/f2disp.o \
-	$(OD)/incrystal.o
+	$(OD)/incrystal.o \
+	$(OD)/mm10_a.o \
+	$(OD)/mm10_b.o \
+	$(OD)/mm10_c.o \
+	$(OD)/mm10_d.o \
+	$(OD)/mm10_e.o \
+	$(OD)/mm10_f.o
 #
 #                          link
 #
