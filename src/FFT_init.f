@@ -104,6 +104,10 @@ c
       call scinit(nblank,reclen,endchr,promsw,echosw,comsw,atrdsw,
      &            eolsw,eofsw,menusw,ptsw,signsw)
 c
+c                       Asymmetric assembly
+c
+      asymmetric_assembly = .false.
+c
 c
 c                    build-in material library
 c

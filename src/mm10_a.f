@@ -32,7 +32,7 @@ c
      &                 do_nonlocal, nonlocal_state, maxnonlocal,
      &                 iter_0_extrapolate_off )
 c
-      use segmental_curves, only: max_seg_points
+c     use segmental_curves, only: max_seg_points
       use mm10_defs
       use mm10_constants
 c
@@ -619,11 +619,12 @@ c     *                                                              *
 c     ****************************************************************
 c
       subroutine mm10_set_sizes_special( size_data, local_el  )
-      use main_data, only : imatprp
+      use fft, only : imatprp
       use mm10_defs, only : one_crystal_hist_size, common_hist_size
       use mm10_constants
-      use global_data ! old common.main
+c     use global_data ! old common.main
       implicit none
+      include 'common.main'
 c
       integer :: size_data(*), local_el, matnum, ncrystals
 c
@@ -1082,7 +1083,7 @@ c
       use iso_Fortran_env
       use mm10_defs
       use mm10_constants
-      use main_data, only: asymmetric_assembly
+      use fft, only: asymmetric_assembly
       implicit none
 c
 c              parameters
@@ -1597,8 +1598,8 @@ c
           RHS      = zero
           do i = 1, ngp
 c              1-3 are the coordinates
-            call getgpts( elem_type, order, i, intermat(i,1),
-     &                    intermat(i,2), intermat(i,3), weight )
+c           call getgpts( elem_type, order, i, intermat(i,1),
+c    &                    intermat(i,2), intermat(i,3), weight )
             intermat(i,4) = one
             RHS(i) = Rt3d(a,b,i)
           end do

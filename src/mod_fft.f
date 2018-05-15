@@ -49,6 +49,11 @@ c     ================== Newton-Raphson loop control ==================
       integer, save :: maxIter, nstep, tstep
       real(8), save :: F_total(9), mults(100000) ! mxstep from param_def
       logical, save :: out_step(100000)
+c
+c                 Another solution parameter telling us whether
+c                 or not to use asymmetric assembly
+c
+      logical, save :: asymmetric_assembly
 
 c     ===================== global state variables =====================
       real(8), dimension(:,:), save, allocatable :: Ghat4, K4

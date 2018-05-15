@@ -28,9 +28,11 @@ c
      & one_crystal_hist_size, common_hist_size, length_comm_hist
       use crystal_data, only : c_array, crystal_input,
      &            data_offset
-      use global_data  ! old common.main
-      use main_data
+c     use global_data  ! old common.main
+c     use main_data
+      use fft, only: matprp, imatprp, matList
       implicit none
+      include 'common.main'
 c
       integer :: i, j, k, ncrystals, cnum, osn, num, ecount,
      &  total_hist_size, crystal,
@@ -70,7 +72,8 @@ c               note: this code is from avg_cry_elast_props
 c               in mod_crystals.f
 c
       local_debug = .false.
-      call iodevn( indev, outdev, idummy, jdummy )
+c     call iodevn( indev, outdev, idummy, jdummy )
+      outdev = out
 c
       num_common_indexes = 5
       num_crystal_terms  = 11
@@ -87,7 +90,8 @@ c
        matprp(2,i) = 0.0
        ecount = 0
        do j = 1, noelem  ! all in model
-         if( iprops(38,j)  /=  i) cycle   ! element has this material?
+c        if( iprops(38,j)  /=  i) cycle   ! element has this material?
+         if( matList(j)  /=  i) cycle   ! element has this material?
            ecount = ecount + 1
             ncrystals = imatprp(101, i)
             do k = 1, ncrystals
