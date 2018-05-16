@@ -18,8 +18,11 @@ c
         logical :: assigned
         integer :: matnum
         character(len=24) :: matnam
+        real    :: matprp(300)
         integer :: imatprp(300)
-        logical :: lmatprp(300)
+        logical :: lmtprp(300)
+c       equivalence (matprp,lmtprp)
+c       equivalence (matprp,imatprp)
         double precision :: dmatprp(300)
         character(len=24), dimension(300) :: smatprp
       end type

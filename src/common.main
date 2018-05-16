@@ -56,13 +56,14 @@ c
 c
 c              --- real arrays/vectors/scalars ---
 c
-      common/rvecs1/ props(mxelpr,mxel)
+c     common/rvecs1/ props(mxelpr,mxel)
       common/rvecs2/ times(mxtim,2)
       common/rvecs3/ user_cnstrn_stp_factors(mxstep)
       common/rvecs4/ actual_cnstrn_stp_factors(mxstep)
       common/realscalars/ strtm, time_limit
 c     
-      real :: props, times, strtm, time_limit,
+c     real :: props, times, strtm, time_limit,
+      real :: times, strtm, time_limit,
      &    user_cnstrn_stp_factors, actual_cnstrn_stp_factors
 c
 c              --- logical arrays/vectors/scalars ---
@@ -88,8 +89,8 @@ c
      &    stpchk, trace, convrg, root_processor, slave_processor, 
      &    worker_processor, use_mpi
 c     
-      logical :: lprops(mxelpr,mxel) ! only for equivalencing to props
-      equivalence ( lprops, props )
+c     logical :: lprops(mxelpr,mxel) ! only for equivalencing to props
+c     equivalence ( lprops, props )
 c
 c              --- integer arrays/vectors/scalars ---
 c
@@ -121,8 +122,8 @@ c
      &    myid, numprocs, MPI_VAL, blk_ptr_head,
      &    MPI_DOF_LOCAL, num_dof_local, proc_pids, douextdb
 c     
-      integer :: iprops(mxelpr,mxel) ! only for equiv with props 
-      equivalence ( iprops, props )
+c     integer :: iprops(mxelpr,mxel) ! only for equiv with props 
+c     equivalence ( iprops, props )
 c
 c              --- character arrays/vectors/scalars ---
 c

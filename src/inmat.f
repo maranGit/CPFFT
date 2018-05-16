@@ -100,6 +100,167 @@ c
 
   666 return
       end subroutine
+c                                                                               
+c     ****************************************************************          
+c     *                                                              *          
+c     *                      subroutine inmat_cp                     *          
+c     *                                                              *          
+c     *                       written by : mcm                       *          
+c     *                                                              *          
+c     *                   last modified : 3/21/12                    *          
+c     *                                                              *          
+c     *     input properties for the crystal plasticity model (#10)  *          
+c     *                                                              *          
+c     ****************************************************************          
+c                                                                               
+      subroutine inmat_cp(matnum)                                               
+      use fft, only : matprp, lmtprp, imatprp, dmatprp, smatprp           
+      implicit integer (a-z)                                                    
+      integer, intent(in) :: matnum                                             
+      integer :: dumi, nc                                                       
+      real :: dumr                                                              
+      double precision :: dumd                                                  
+      character :: dums, lab*24, filen*24                                       
+      logical :: reading                                                        
+      logical, external :: matchs_exact, isstring, label, numr, numd,           
+     &                     matchs, numi, endcrd                                 
+                                                                                
+c           See above for a detailed summary of each material option, in        
+c           general, handle input for 6,7,9,13,22,25,100-113                    
+c                                                                               
+c           Set defaults                                                        
+      lmtprp(13,matnum)=.false.                                                 
+      lmtprp(22,matnum)=.true.                                                  
+      lmtprp(25,matnum)=.false.                                                 
+c           Read in properties                                                  
+      reading = .true.                                                          
+      do while (reading)                                                        
+            if ( matchs_exact('angle_convention')) then                         
+                  if (.not. label(dumi)) then                                   
+                        call errmsg(356,dumi,dums,dumr,dumd)                    
+                  else                                                          
+                        lab = ' '                                               
+                        call entits(lab,nc)                                     
+                  end if                                                        
+c                                                                               
+                  if (lab(1:nc) .eq. 'kocks') then                              
+                        imatprp(102,matnum) = 1                                 
+                  else                                                          
+                        call errmsg(357,dumi,lab(1:nc),dumr,dumd)               
+                  end if                                                        
+            elseif ( matchs_exact('alpha')) then                                
+                  if (.not. numr(matprp(6,matnum))) then                        
+                        call errmsg(5,dumi,'alpha',dumr,dumd)                   
+                  end if                                                        
+            elseif ( matchs_exact('rho')) then                                  
+                  if (.not. numr(matprp(7,matnum))) then                        
+                        call errmsg(5,dumi,'rho',dumr,dumd)                     
+                  end if                                                        
+            elseif ( matchs_exact('tolerance')) then                            
+                  if (.not. numd(dmatprp(100,matnum))) then                     
+                        call errmsg(5,dumi,'tolerance',dumr,dumd)               
+                  end if                                                        
+            elseif ( matchs_exact('n_crystals')) then                           
+                  if (.not. numi(imatprp(101,matnum))) then                     
+                        call errmsg(5,dumi,'n_crystals',dumr,dumd)              
+                  end if                                                        
+            elseif ( matchs_exact('angle_type')) then                           
+                  if (.not. label(dumi)) then                                   
+                        call errmsg(358,dumi,dums,dumr,dumd)                    
+                  else                                                          
+                        lab = ' '                                               
+                        call entits(lab,nc)                                     
+                  end if                                                        
+c                                                                               
+                  if (lab(1:nc) .eq. 'degrees') then                            
+                        imatprp(103,matnum) = 1                                 
+                  elseif (lab(1:nc) .eq. 'radians') then                        
+                        imatprp(103,matnum) = 2                                 
+                  else                                                          
+                        call errmsg(359,dumi,lab(1:nc),dumr,dumd)               
+                  end if                                                        
+            elseif ( matchs_exact('crystal_input')) then                        
+                  if (.not. label(dumi)) then                                   
+                        call errmsg(360,dumi,dums,dumr,dumd)                    
+                  else                                                          
+                        lab = ' '                                               
+                        call entits(lab,nc)                                     
+                  end if                                                        
+c                                                                               
+                  if (lab(1:nc) .eq. 'single') then                             
+                        imatprp(104,matnum) = 1                                 
+                  elseif (lab(1:nc) .eq. 'file') then                           
+                        imatprp(104,matnum) = 2                                 
+                  else                                                          
+                        call errmsg(361,dumi,lab(1:nc),dumr,dumd)               
+                  end if                                                        
+            elseif ( matchs_exact('crystal_type')) then                         
+                  if (.not. numi(imatprp(105,matnum))) then                     
+                        call errmsg(5,dumi,'crystal_type',dumr,dumd)            
+                  end if                                                        
+            elseif ( matchs_exact('orientation_input')) then                    
+                  if (.not. label(dumi)) then                                   
+                        call errmsg(360,dumi,dums,dumr,dumd)                    
+                  else                                                          
+                        lab = ' '                                               
+                        call entits(lab,nc)                                     
+                  end if                                                        
+c                                                                               
+                  if (lab(1:nc) .eq. 'single') then                             
+                        imatprp(107,matnum) = 1                                 
+                  elseif (lab(1:nc) .eq. 'file') then                           
+                        imatprp(107,matnum) = 2                                 
+                  else                                                          
+                        call errmsg(361,dumi,lab(1:nc),dumr,dumd)               
+                  end if                                                        
+            elseif ( matchs_exact('angles') ) then                              
+                  if (.not. (numd(dmatprp(108,matnum)) .and.                    
+     &                       numd(dmatprp(109,matnum)) .and.                    
+     &                       numd(dmatprp(110,matnum)))) then                   
+                        call errmsg(362,dumi,dums,dumr,dumd)                    
+                  end if                                                        
+            elseif ( matchs_exact('filename')) then                             
+                  call doscan()                                                 
+                  if (.not. isstring()) then                                    
+                        call errmsg(363,dumi,dums,dumr,dumd)                    
+                  else                                                          
+                        filen = ' '                                             
+                        call entits(filen,nc)                                   
+                        if (nc .gt. 24) then                                    
+                              call errmsg(365,dumi,dums,dumr,dumd)              
+                        end if                                                  
+                        call scan()                                             
+                        smatprp(112,matnum) = filen                             
+                  end if                                                        
+            elseif ( matchs_exact('debug')) then                                
+                  if (.not. label(dumi)) then                                   
+                        call errmsg(364,dumi,dums,dumr,dumd)                    
+                  else                                                          
+                        lab = ' '                                               
+                        call entits(lab,nc)                                     
+                        if (lab(1:nc) .eq. 'on') then                           
+                              lmtprp(13,matnum) = .true.                        
+                        elseif (lab(1:nc) .eq. 'off') then                      
+                              lmtprp(13,matnum) = .false.                       
+                        else                                                    
+                              call errmsg(364,dumi,dums,dumr,dumd)              
+                        end if                                                  
+                  end if                                                        
+            elseif ( endcrd(dum) ) then                                         
+                  reading = .false.                                             
+                  cycle                                                         
+            elseif ( matchs(',',1) ) then                                       
+                  call readsc()                                                 
+            else                                                                
+                  call entits(lab,nc)                                           
+                  call errmsg(355,dumi,lab(1:nc),dumr,dumd)                     
+                  call scan()                                                   
+                  cycle                                                         
+                  end if                                                        
+            end do                                                              
+                                                                                
+      return                                                                    
+      end subroutine                                                            
 c
 c     ****************************************************************
 c     *                                                              *

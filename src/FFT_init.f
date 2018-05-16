@@ -133,7 +133,7 @@ c
         mat_props(i)%matnum = 0
         mat_props(i)%matnam = ' '
         mat_props(i)%imatprp = 0
-        mat_props(i)%lmatprp = .false.
+        mat_props(i)%lmtprp = .false.
         mat_props(i)%dmatprp = 0.0D0
         mat_props(i)%smatprp = ' '
       enddo

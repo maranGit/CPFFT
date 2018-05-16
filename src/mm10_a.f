@@ -619,7 +619,7 @@ c     *                                                              *
 c     ****************************************************************
 c
       subroutine mm10_set_sizes_special( size_data, local_el  )
-      use fft, only : imatprp
+      use fft, only : imatprp, matList
       use mm10_defs, only : one_crystal_hist_size, common_hist_size
       use mm10_constants
 c     use global_data ! old common.main
@@ -632,7 +632,7 @@ c        size_data(1)  :  no. of words of history data for each
 c                         integration point
 c        in this case sizeof(__)*number of crystals
 c
-      matnum    = iprops(38,local_el)
+      matnum    = matList(local_el)
       ncrystals = imatprp(101,matnum)
 c
 c              total history size is going to be:
