@@ -42,8 +42,8 @@ c     number of grids
 
 c     material parameters
       ii = 1
-      do while ( mat_props(ii)%assigned )
-        write(out,1002) ii, mat_props(ii)%matnam
+      do while ( mat_assigned(ii) )
+        write(out,1002) ii, matnam(ii)
         ii = ii + 1
       end do
 

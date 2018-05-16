@@ -50,7 +50,7 @@ c     *                                                              *
 c     ****************************************************************
 c
       subroutine do_nleps_block( blk, iter, step )
-      use fft, only: Fn1, Pn1, Fn, K4, matList, mat_props, tstep
+      use fft, only: Fn1, Pn1, Fn, K4, matList, tstep, matprp
       use elem_block_data
       implicit none
       include 'common.main'
@@ -127,7 +127,7 @@ c
       span = elblks(0, blk)
       felem = elblks(1, blk)
       currmat = matList(felem)
-      mat_type = mat_props(currmat)%matnum
+      mat_type = matprp(9,currmat)
 c
 c
 c                        initialize local work
@@ -339,21 +339,20 @@ c
 c
       subroutine mm01_hardCoded
       implicit none 
-      real(8) :: ym, nu, beta, tan_e, yld, alpha_x, alpha_y, alpha_z
+      real(8) :: ym, nu, beta, tan_e, yld, alpha, rho
       
       gp_dtemps = zero ! temperature change over step
       
 c                    grab material parameters from global to local
       do ii = 1, span
         currmat = matList(felem + ii - 1)
-        ym = mat_props(currmat)%dmatprp(1)
-        nu = mat_props(currmat)%dmatprp(2)
-        yld = mat_props(currmat)%dmatprp(3)
-        tan_e = mat_props(currmat)%dmatprp(4)
-        alpha_x = mat_props(currmat)%dmatprp(6)
-        alpha_y = mat_props(currmat)%dmatprp(7)
-        alpha_z = mat_props(currmat)%dmatprp(8)
-        beta = mat_props(currmat)%dmatprp(9)
+        ym    = matprp(1,currmat)
+        nu    = matprp(2,currmat)
+        yld   = matprp(5,currmat)
+        tan_e = matprp(4,currmat)
+        rho   = matprp(7,currmat)
+        alpha = matprp(6,currmat)
+        beta  = matprp(3,currmat)
         local_work%e_vec(ii) = ym 
         local_work%nu_vec(ii) = nu
         local_work%beta_vec(ii) = beta

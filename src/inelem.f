@@ -10,7 +10,7 @@ c     *                                                              *
 c     ****************************************************************
 c
       subroutine inelem()
-      use fft, only: matList, mat_props
+      use fft, only: matList, matprp, imatprp, lmtprp, mat_assigned
       implicit none
       include 'common.main'
 
@@ -85,8 +85,8 @@ c
           
           currMat = 1
           matFound = .false.
-          do while( mat_props(currMat)%assigned )
-            if( scanms( mat_props(currMat)%matnam, mname, 24 ) ) then
+          do while ( mat_assigned(currMat) )
+            if( scanms( matnam(currMat), mname, 24 ) ) then
               matFound = .true.
               exit
             end if

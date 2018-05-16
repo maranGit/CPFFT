@@ -737,7 +737,7 @@ c
 c
       subroutine material_model_info( element_no, block_no, info_type,
      &                                 value )
-      use fft, only: matList, mat_props
+      use fft, only: matList, matprp
       implicit none
       include 'common.main'
 c                      global data
@@ -803,7 +803,7 @@ c
 c
 c      mat_type = iprops(25,local_element_no)
       currmat = matList(element_no)
-      mat_type = mat_props(currmat)%matnum
+      mat_type = matprp(9,currmat)
 c
 c              See if we're actually a interface-damaged model
 c

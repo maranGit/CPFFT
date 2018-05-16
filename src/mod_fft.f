@@ -14,20 +14,20 @@ c                 material properties array. these sizes correspond to
 c                 mxmtpr x  mxmat in param_def and must always
 c                 be consistent !
 c
-      type :: mat_property
-        logical :: assigned
-        integer :: matnum
-        character(len=24) :: matnam
-        real    :: matprp(300)
-        integer :: imatprp(300)
-        logical :: lmtprp(300)
+c     type :: mat_property
+c       logical :: assigned
+c       integer :: matnum
+c       character(len=24) :: matnam
+c       real    :: matprp(300)
+c       integer :: imatprp(300)
+c       logical :: lmtprp(300)
 c       equivalence (matprp,lmtprp)
 c       equivalence (matprp,imatprp)
-        double precision :: dmatprp(300)
-        character(len=24), dimension(300) :: smatprp
-      end type
+c       double precision :: dmatprp(300)
+c       character(len=24), dimension(300) :: smatprp
+c     end type
 
-      type (mat_property), save :: mat_props(500)
+c     type (mat_property), save :: mat_props(500)
 
       character(len=20), save, 
      &   allocatable, dimension(:) :: material_model_names
@@ -38,6 +38,7 @@ c                 material properties array. these sizes correspond to
 c                 mxmtpr x  mxmat in param_def and must always
 c                 be consistent !
 c
+      logical          :: mat_assigned(500) ! if assigned
       integer          :: imatprp(300,500)
       real             :: matprp(300,500)
       logical          :: lmtprp(300,500)
