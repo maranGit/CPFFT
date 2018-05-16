@@ -831,8 +831,8 @@ c     case( 8 )
 c       call umat_set_features( info_vector )
 c     case( 9 )
 c       call mm09_set_sizes( info_vector )
-c     case(10 )
-c       call mm10_set_sizes_special( info_vector, local_element_no )
+      case(10 )
+        call mm10_set_sizes_special( info_vector, local_element_no )
       case default
         write(out,9000) 4
         call die_gracefully
