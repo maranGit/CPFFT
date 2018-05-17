@@ -236,7 +236,7 @@ c               CP model
 c
 c      call drive_10_update( gpn, props, lprops, iprops,
 c     &                       local_work, uddt, iout)
-c       call drive_10_update( gpn, local_work, uddt, iout )
+        call drive_10_update( gpn, local_work, uddt, iout )
 c
       case default
         write(iout,*) '>>> invalid material model number'
@@ -540,7 +540,7 @@ c
 c     ****************************************************************
 c     *                                                              *
 c     *                 Ran modify this line                         *
-c     *                 no need to call drive_01_update              *
+c     *                 no need to call drive_01_update_a            *
 c     *                                                              *
 c     ****************************************************************
 c     if( iter >= 1 ) then !nonlinear update
@@ -718,7 +718,505 @@ c
 c         
       return
       end
+c
+c     ****************************************************************
+c     *                                                              *
+c     *     subroutine drive_10_update  (crystal plasticity)         *
+c     *                                                              *
+c     *                                                              *
+c     *                       written by : rhd                       *
+c     *                                                              *
+c     *                   last modified : 12/8/15                    *
+c     *                                                              *
+c     *     this subroutine drives material model 10 to              *
+c     *     update stresses and history for all elements in the      *
+c     *     for gauss point gpn                                      *
+c     *                                                              *
+c     ****************************************************************
+c
+c
+c     subroutine drive_10_update( gpn, props, lprops, iprops,
+c    &                            local_work, uddt_displ, iout )
+      subroutine drive_10_update( gpn, local_work, uddt_displ, iout )
 
+      use fft, only : matprp, lmtprp, imatprp, dmatprp, smatprp
+c    &                      extrapolated_du, non_zero_imposed_du
+c     use segmental_curves, only : max_seg_points
+      use elem_block_data, only : gbl_cep_blocks => cep_blocks,
+     &                            nonlocal_flags, nonlocal_data_n1
+c
+      implicit none
+      include 'param_def'
+c
+c                      parameter declarations
+c
+      integer :: gpn, iout
+c     real    :: props(mxelpr,*)   ! all 3 are same but read-only here
+c     logical :: lprops(mxelpr,*)
+c     integer :: iprops(mxelpr,*)
+      double precision :: uddt_displ(mxvl,nstr)
+      include 'include_sig_up'
+c
+c
+c                       locally defined variables
+c
+      integer :: ncrystals, iter, span, felem, step, type, order,
+     &           nnode, hist_size_for_blk, now_blk,
+     &           i, j, matnum, k, start_loc, m, n, igp
+      double precision ::
+     &  gp_temps(mxvl), gp_rtemps(mxvl), gp_dtemps(mxvl),
+     &  zero, one, gp_alpha, dtime, uddt_temps(mxvl,nstr),
+     &  uddt(mxvl,nstr), cep(mxvl,6,6), cep_vec(36), tol
+c
+      logical :: signal_flag, local_debug, temperatures,
+     &           temperatures_ref, check_D, iter_0_extrapolate_off
+      data zero, one / 0.0d0, 1.0d0 /
+      logical :: extraoplated_du
+
+c
+      dtime             = local_work%dt
+      span              = local_work%span
+      felem             = local_work%felem
+      step              = local_work%step
+      iter              = local_work%iter
+      type              = local_work%elem_type
+      order             = local_work%int_order
+      nnode             = local_work%num_enodes
+      signal_flag       = local_work%signal_flag
+      temperatures      = local_work%temperatures
+      temperatures_ref  = local_work%temperatures_ref
+      hist_size_for_blk = local_work%hist_size_for_blk
+      now_blk           = local_work%blk
+      matnum            = local_work%matnum
+      local_debug       = .false. ! now_blk == 1  .and. gpn .eq. 1
+      check_D           = .false.
+      if( local_debug ) then
+        write(iout,9000) felem, gpn, span
+        write(iout,9010) dtime, type, order, nnode, step,
+     &                   iter, now_blk,
+     &                   temperatures, temperatures_ref,
+     &                   hist_size_for_blk
+      end if
+c
+c           get increment of temperature at gauss point for elements
+c           in the block, the temperature at end of step and the
+c           reference temperature.
+c
+c     call gauss_pt_temps(
+c    &        local_work%dtemps_node_blk, gpn, type, span, order,
+c    &        nnode, gp_dtemps, local_work%temps_node_blk,
+c    &        gp_temps, temperatures, local_work%temps_node_to_process,
+c    &        temperatures_ref, local_work%temps_ref_node_blk,
+c    &        gp_rtemps )
+c
+c            subtract out the thermal strain increment from uddt (the
+c            strain increment for step) (We're actually going to do this
+c            internally)
+c
+c!DIR$ VECTOR ALIGNED
+      uddt_temps = zero
+c     if ( temperatures ) then
+c       call gp_temp_eps( span, uddt_temps, local_work%alpha_vec,
+c    &                    gp_dtemps, gp_temps, gp_rtemps,
+c    &                    local_work%alpha_vec, type )
+c     end if
+c
+c            init block of nonlocal state variables. values array always
+c            allocated but with size (1,1) for std. local analyses.
+c            just makes passing args simpler.
+c
+c!DIR$ VECTOR ALIGNED
+c
+c            Ran hard code temperature at gauss point
+c
+      gp_temps  = zero
+      gp_dtemps = zero
+      gp_rtemps = zero
+
+      if( local_work%block_has_nonlocal_solids )
+     &    local_work%nonlocal_state_blk = zero ! array
+c
+c            for small displacement analysis, set integration point
+c            rotations to identity.
+c
+      if( .not. local_work%geo_non_flg ) then ! set to identity
+       if( gpn .eq. 1 ) then
+c!DIR$ VECTOR ALIGNED
+         local_work%rot_blk_n1 = zero ! full array
+         do igp = 1, local_work%num_int_points
+c!DIR$ VECTOR ALIGNED
+           do i = 1, mxvl
+             local_work%rot_blk_n1(i,1,igp) = one
+             local_work%rot_blk_n1(i,5,igp) = one
+             local_work%rot_blk_n1(i,9,igp) = one
+           end do
+         end do
+       end if
+      end if
+c
+c            uddt_displ - strain increment due to displacement
+c                         increment
+c            uddt_temps - (negative) of strain increment just due
+c                         to temperature change
+c            for iter > 1, do a usual nonlinear stress update.
+c                          consistent tangent is in terms 1-36
+c                          of history @ n+1 for the integration point
+c            for iter = 0 and extrapolated, usual nonlinear update
+c            for iter = 0 and extrapolate off, mm10 computes
+c            sigma_n+1 = sigma_n + D_E * ( uddt - delta eps creep)
+c            and puts D_E into history 1-36. D_E is linear-elastic
+c            constitutive matrix.
+c
+      extrapolated_du = .false. ! Ran don't know what it is...
+c!DIR$ VECTOR ALIGNED
+      uddt = uddt_displ + uddt_temps
+      iter_0_extrapolate_off = .false.
+      if( iter .eq. 0 ) then
+        iter_0_extrapolate_off = .not. extrapolated_du
+        if( step .eq. 1 ) iter_0_extrapolate_off = .true.
+      end if
+      if( local_debug )  write(iout,9110) felem, gpn, span
+      call mm10( gpn, local_work%span, local_work%ncrystals,
+     &           hist_size_for_blk,
+     &           local_work%elem_hist(1,1,gpn),
+     &           local_work%elem_hist1(1,1,gpn),
+     &           local_work, uddt, gp_temps,
+     &           gp_dtemps, iout, signal_flag,
+     &           local_work%block_has_nonlocal_solids,
+     &           local_work%nonlocal_state_blk(1,1),
+     &           nonlocal_shared_state_size,  ! value in param_def
+     &           iter_0_extrapolate_off )
+c
+      if( local_work%block_has_nonlocal_solids )
+     &    call drive_10_non_local ! finish nonlocal shared
+
+      if( local_debug )  write(iout,9120) felem, gpn, span
+c
+      if( check_D ) then
+        tol = 0.01d00
+        do i = 1, span
+          do j = 1, 6
+            if( cep(i,j,j) .lt. tol ) then
+               write(iout,*) ' .. fatal @ 1 in drive_10_update'
+               call die_abort
+            end if
+          end do ! on j
+          do j = 1, 6
+            do k = 1, 6
+             if( abs( cep(i,j,k) - cep(i,k,j) )
+     &           .gt. 1.0d-8 ) then
+               write(iout,*) ' .. fatal @ 2 drive_10_update'
+               call die_abort
+             end if
+            end do ! on k
+          end do ! on j
+        end do  ! on i
+      end if ! on cehck_D
+
+      if( local_debug ) then
+       write(iout,*) ".... linear elastic [D] for",
+     &                 " CP in drive_10_update "
+       do i = 1, span
+          write(iout,*) '    ... element: ', felem+i-1
+            write(iout,9100) cep(i,1:6,1:6)
+       end do
+      end if
+c
+      return
+
+c
+ 9000 format(1x,'.... debug mm10. felem, gpn, span: ',i7,i3,i3)
+ 9010 format(10x,'... dtime, type, order, nnode:     ',e14.6,3i5,
+     &     /,10x,'... step, iter, now_blk:           ',3i5,
+     &     /,10x,'... temperatures, temperatures_ref: ',
+     &               2l2,
+     &     /,10x,'... hist_size_for_blk: ',i4 )
+ 9100 format(10x,6e14.5)
+ 9110 format(10x,'... call mm10 for felem, gpn, span: ',3i10)
+ 9120 format(10x,'... returned from mm10 for felem, gpn, span: ',3i10)
+      contains
+c     ========
+
+c     ****************************************************************
+c     *                                                              *
+c     *                 subroutine drive_10_non_local                *
+c     *                                                              *
+c     *                       written by : rhd                       *
+c     *                                                              *
+c     *                   last modified : 3/5/2016 rhd               *
+c     *                                                              *
+c     *     support routine for mm10 material driver.                *
+c     *     should be inlined                                        *
+c     *                                                              *
+c     ****************************************************************
+
+      subroutine drive_10_non_local
+      implicit none
+
+      integer :: n, i, elem_num
+      double precision :: real_npts
+c
+      n = nonlocal_shared_state_size ! for convenience from param_def
+      if( local_debug ) write(iout,9010) n
+c
+      if( gpn .eq. 1 ) then  ! zero global values for elements
+        do i = 1, span
+          elem_num = felem + i - 1
+          if( nonlocal_flags(elem_num) )
+     &         nonlocal_data_n1(elem_num)%state_values(1:n) = zero
+        end do
+      end if
+c
+      do i = 1, span ! add in this gpn nonlocal values
+       elem_num = felem + i - 1
+       if( nonlocal_flags(elem_num) )
+     &       nonlocal_data_n1(elem_num)%state_values(1:n) =
+     &       nonlocal_data_n1(elem_num)%state_values(1:n) +
+     &       local_work%nonlocal_state_blk(i,1:n)
+      end do
+c
+      if( gpn .eq. local_work%num_int_points ) then
+         real_npts = dble( local_work%num_int_points )
+         do i = 1, span
+          elem_num = felem + i - 1
+          if( nonlocal_flags(elem_num) )
+     &      nonlocal_data_n1(elem_num)%state_values(1:n) =
+     &      nonlocal_data_n1(elem_num)%state_values(1:n) / real_npts
+         end do
+c         write(iout,*) '.. drive_mm10. avg nonlocal. blk: ',now_blk
+c         do i = 1, span
+c         write(iout,9100) felem+i-1,
+c     &      nonlocal_data_n1(elem_num)%state_values(1:n)
+c         end do
+      end if
+c
+ 9010 format(/,'      processing nonlocal values. # values: ',i2 )
+ 9100 format(10x,i10,5e14.6)
+      return
+      end subroutine  drive_10_non_local
+
+
+
+c     ****************************************************************
+c     *                                                              *
+c     *   ==> no longer called:  subroutine drive_10_update_b                 *
+c     *                                                              *
+c     *                       written by : rhd                       *
+c     *                                                              *
+c     *                   last modified : 1/9/2016 rhd               *
+c     *                                                              *
+c     *     support routine for mm10 material driver.                *
+c     *     should be inlined                                        *
+c     *                                                              *
+c     ****************************************************************
+
+      subroutine drive_10_update_b
+      use crystal_data, only : c_array, angle_input, crystal_input,
+     &                         data_offset
+      implicit none
+c
+      integer :: i, elnum, ci, osn, cnum, ati, aci, tc, a, b
+      double precision, allocatable :: cp_stiff(:,:,:,:),
+     &                                 cp_g_rot(:,:,:,:)
+      double precision :: angles(3), totalC(6,6), Cci(6,6), Srot(6,6),
+     &                    Ct(6,6), local_rmat(3,3),
+     &                    trans_local_rmat(3,3), trans_Srot(6,6)
+      integer, allocatable :: ncrystals(:)
+      character :: aconv*5, atype*7
+c
+      allocate( cp_stiff(mxvl,6,6,max_crystals) )
+      allocate( cp_g_rot(mxvl,3,3,max_crystals) )
+      allocate( ncrystals(mxvl) )
+c
+       do i = 1, span
+          ncrystals(i) = imatprp(101,matnum)
+          elnum = felem+i-1
+          do ci = 1, ncrystals(i)
+            if( imatprp(104,matnum) .eq. 1 ) then
+                  cnum = imatprp(105,matnum)
+            elseif( imatprp(104,matnum) .eq. 2 ) then
+                  osn = data_offset(elnum)
+                  cnum = crystal_input(osn,ci)
+                  if( (cnum .gt. max_crystals) .or.
+     &                  (cnum .lt. 0) ) then
+                   write (iout,9501) cnum
+                   call die_gracefully
+                  end if
+            else
+                  write(iout,9502)
+                  call die_gracefully
+            end if
+            cp_stiff(i,1:6,1:6,ci) = c_array(cnum)%elast_stiff
+c
+            if( imatprp(107,matnum) .eq. 1 ) then
+                  angles(1) = dmatprp(108,matnum)
+                  angles(2) = dmatprp(109,matnum)
+                  angles(3) = dmatprp(110,matnum)
+            elseif( imatprp(107,matnum) .eq. 2 ) then
+                  osn = data_offset(elnum)
+                  angles(1:3) = angle_input(osn,ci,1:3)
+            else
+                  write(iout,9502)
+                  call die_gracefully
+            end if
+            aci = imatprp(102,matnum)
+            ati = imatprp(103,matnum)
+c              use helper to get the crystal -> reference rotation
+            if( ati .eq. 1 ) then
+                  atype = "degrees"
+            elseif( ati .eq. 2) then
+                  atype = "radians"
+            else
+                  write(iout,9503)
+                  call die_gracefully
+            end if
+c
+            if( aci .eq. 1 ) then
+                  aconv = "kocks"
+            else
+                  write(iout,9504)
+                  call die_gracefully
+            end if
+            call mm10_rotation_matrix( angles, aconv, atype,
+     &                                 local_rmat, iout )
+            cp_g_rot(i,1:3,1:3,ci) = local_rmat
+          end do ! over ncrystals
+      end do   !   over span
+c
+      cep = zero ! this is local to drive_10_update_b
+c
+       do i = 1, span
+        tc = 0
+        totalC = zero
+        do ci = 1, ncrystals(i)
+            local_rmat = cp_g_rot(i,1:3,1:3,ci)
+            trans_local_rmat = transpose( local_rmat )
+            Ct = cp_stiff(i,1:6,1:6,ci)
+            Srot = zero
+            call mm10_RT2RVE( trans_local_rmat, Srot)
+            trans_Srot = transpose( Srot )
+            Cci = matmul( Ct, trans_Srot )
+            Cci = matmul( Srot, Cci )
+            totalC = totalC + Cci
+            tc = tc + 1
+         end do
+c
+         totalC = totalC / dble(tc) ! average over all crystals
+c
+         cep(i,1:3,1:3) = totalC(1:3,1:3)
+         cep(i,4,4) = totalC(4,4)
+         cep(i,5,5) = totalC(5,5)
+         cep(i,6,6) = totalC(6,6)
+c
+      end do  ! over span
+c
+      deallocate( cp_stiff, cp_g_rot, ncrystals )
+      return
+c
+9501  format(/1x,
+     &'>>>>> FATAL ERROR: detected in drive_10_update_b',
+     & /,16x,'invalid crystal number detected: ',i3,
+     & /,16x,'job aborted' )
+9502  format(/1x,
+     &'>>>>> FATAL ERROR: detected in drive_10_update_b',
+     & /,16x,'invalid/inconsistent crystal input',
+     & /,16x,'job aborted' )
+9503  format(/1x,
+     &'>>>>> FATAL ERROR: detected in drive_10_update_b',
+     & /,16x,'unexpected/unknown angle measure',
+     & /,16x,'job aborted' )
+9504  format(/1x,
+     &'>>>>> FATAL ERROR: detected in drive_10_update_b',
+     & /,16x,'unexpected/unknown angle convention',
+     & /,16x,'job aborted' )
+c
+      end subroutine drive_10_update_b
+      end subroutine drive_10_update
+
+c     ****************************************************************
+c     *                                                              *
+c     *                 subroutine drive_10_update_c                 *
+c     *                                                              *
+c     *                       written by : rhd                       *
+c     *                                                              *
+c     *                   last modified : 12/8/2015 rhd              *
+c     *                                                              *
+c     *     support routine for mm10 material driver.                *
+c     *     should be inlined                                        *
+c     *                                                              *
+c     ****************************************************************
+
+      subroutine drive_10_update_c( source, nrows, row, dest, nterms )
+      implicit none
+c
+      integer :: nrows, row, nterms
+      double precision ::
+     &  source(nrows,nterms,nterms), dest(nterms)
+c
+      integer :: i, j, k
+c
+      k = 0
+c
+      do i = 1, 6
+        do j = 1, 6
+          k = k + 1
+          dest(k) = source(row,j,i)
+        end do
+      end do
+c
+      return
+      end
+
+c     ****************************************************************
+c     *                                                              *
+c     *                 subroutine drive_10_update_a                 *
+c     *                                                              *
+c     *                       written by : rhd                       *
+c     *                                                              *
+c     *                   last modified : 12/8/2015 rhd              *
+c     *                                                              *
+c     *     support routine for mm10 material driver.                *
+c     *     should be inlined                                        *
+c     *                                                              *
+c     ****************************************************************
+
+      subroutine drive_10_update_a( span, mxvl, uddt,
+     &                              local_cep, stress_n, stress_np1,
+     &                              killed_status )
+      implicit none
+c
+      integer :: span, mxvl
+      logical :: killed_status(*)
+      double precision ::
+     &  local_cep(mxvl,6,6), stress_n(mxvl,6), stress_np1(mxvl,6),
+     &  uddt(mxvl,6), zero
+      data zero / 0.0d00 /
+c
+      integer i, k, m
+c
+c              for each element in block, update stresses by
+c              [D-elastic] * uddt. uddt contains thermal increment +
+c              increment from imposed nodal displacements.
+c
+c!DIR$ VECTOR ALIGNED
+      stress_np1 = stress_n
+c
+      do k = 1, 6
+       do m = 1, 6
+c!DIR$ VECTOR ALIGNED
+         do i = 1, span
+           stress_np1(i,k) = stress_np1(i,k) +
+     &                       local_cep(i,m,k) * uddt(i,m)
+         end do
+       end do
+      end do
+c
+      do i = 1, span
+        if( killed_status(i) ) stress_np1(i,1:6) = zero
+      end do
+c
+      return
+      end
 c
 c     ****************************************************************
 c     *                                                              *
