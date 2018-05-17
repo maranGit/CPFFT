@@ -125,6 +125,8 @@ c
       material_model_names(10)(1:) = "crystal_plasticity"     
       material_model_names(11)(1:) = "interface_damage"
 c
+      cp_matls_present = -1
+c
 c     hard code NR loop parameters in fft.mod
 c
       debug = .false.

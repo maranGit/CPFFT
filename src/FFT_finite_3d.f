@@ -163,6 +163,7 @@ c                        local
         readnew = .false.
       case (10)
         call drive_eps_sig( 1, 0 )
+        call compute_checks
         call FFT_nr3()
         readnew = .true.
       case (11)

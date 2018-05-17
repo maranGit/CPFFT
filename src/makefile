@@ -75,7 +75,8 @@ OBJ = $(MODS) \
 	$(OD)/mm10_c.o \
 	$(OD)/mm10_d.o \
 	$(OD)/mm10_e.o \
-	$(OD)/mm10_f.o
+	$(OD)/mm10_f.o \
+	$(OD)/compute_checks.o
 #
 #                          link
 #

@@ -1577,65 +1577,66 @@ c!DIR$ ASSUME_ALIGNED rot_blk:64, Rps:64, gradFes:64, jac:64
 c
 c                get R components and stick in the right place
 c
-      if( geonl ) then
-        local_jac(1:3,1:3) = jac(now_elem,1:3,1:3)
-        call mm10_a_invert_33( jacinv, local_jac, ok )
-        do igp = 1, ngp
-          onerot = rot_blk(now_elem,1:9,igp)
-          local_Rps = Rps(now_elem,1:9,igp)
-          call mm10_a_mult_type_3t( Rt3d(1,1,igp), local_Rps, onerot )
-        end do
-      else
-        call mm10_a_copy_vector( Rt3d, Rps, ngp*9 )
-      end if
+c     if( geonl ) then
+c       local_jac(1:3,1:3) = jac(now_elem,1:3,1:3)
+c       call mm10_a_invert_33( jacinv, local_jac, ok )
+c       do igp = 1, ngp
+c         onerot = rot_blk(now_elem,1:9,igp)
+c         local_Rps = Rps(now_elem,1:9,igp)
+c         call mm10_a_mult_type_3t( Rt3d(1,1,igp), local_Rps, onerot )
+c       end do
+c     else
+c       call mm10_a_copy_vector( Rt3d, Rps, ngp*9 )
+c     end if
 c
 c              for each Rt component create an interpolation,
 c              solve for the coefficients, and store the gradient
 c
-      do a = 1, 3
-        do b = 1, 3
-          intermat = zero
-          RHS      = zero
-          do i = 1, ngp
+c     do a = 1, 3
+c       do b = 1, 3
+c         intermat = zero
+c         RHS      = zero
+c         do i = 1, ngp
 c              1-3 are the coordinates
 c           call getgpts( elem_type, order, i, intermat(i,1),
 c    &                    intermat(i,2), intermat(i,3), weight )
-            intermat(i,4) = one
-            RHS(i) = Rt3d(a,b,i)
-          end do
+c           intermat(i,4) = one
+c           RHS(i) = Rt3d(a,b,i)
+c         end do
 c              solve with LAPACK
-          lwork = 8
-          call DGELS('N',  ngp, 4, 1, intermat, mxgp, RHS, ngp, work,
-     &                lwork, info)
-          if( info .ne. 0 ) then
-            write(iout,9000) 2
-            call die_abort
-          end if
+c         lwork = 8
+c         call DGELS('N',  ngp, 4, 1, intermat, mxgp, RHS, ngp, work,
+c    &                lwork, info)
+c         if( info .ne. 0 ) then
+c           write(iout,9000) 2
+c           call die_abort
+c         end if
 c
 c              get the gradient
 c
-          grads(a,b,1) = RHS(1)
-          grads(a,b,2) = RHS(2)
-          grads(a,b,3) = RHS(3)
+c         grads(a,b,1) = RHS(1)
+c         grads(a,b,2) = RHS(2)
+c         grads(a,b,3) = RHS(3)
 c
 c              take to the current coordinates
 c
-          if( geonl ) then
+c         if( geonl ) then
 c            grads(a,b,1:3) = matmul(jacinv,grads(a,b,1:3))
-            grads(a,b,1) = jacinv(1,1)*RHS(1) + jacinv(1,2)*RHS(2) +
-     &                     jacinv(1,3)*RHS(3)
-            grads(a,b,2) = jacinv(2,1)*RHS(1) + jacinv(2,2)*RHS(2) +
-     &                     jacinv(2,3)*RHS(3)
-            grads(a,b,3) = jacinv(3,1)*RHS(1) + jacinv(3,2)*RHS(2) +
-     &                     jacinv(3,3)*RHS(3)
-          end if
-        end do
-      end do
+c           grads(a,b,1) = jacinv(1,1)*RHS(1) + jacinv(1,2)*RHS(2) +
+c    &                     jacinv(1,3)*RHS(3)
+c           grads(a,b,2) = jacinv(2,1)*RHS(1) + jacinv(2,2)*RHS(2) +
+c    &                     jacinv(2,3)*RHS(3)
+c           grads(a,b,3) = jacinv(3,1)*RHS(1) + jacinv(3,2)*RHS(2) +
+c    &                     jacinv(3,3)*RHS(3)
+c         end if
+c       end do
+c     end do
 c
 c              flatten and store
 c
       do igp = 1, ngp
-       gradFes(now_elem,1:27,igp) =  grads_vec(1:27)
+c      gradFes(now_elem,1:27,igp) =  grads_vec(1:27)
+       gradFes(now_elem,1:27,igp) = 0.0D0
       end do
 c
       return

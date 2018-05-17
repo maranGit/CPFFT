@@ -128,10 +128,12 @@ c
       felem = elblks(1, blk)
       currmat = matList(felem)
       mat_type = matprp(9,currmat)
+      adaptive_flag = .false.
 c
 c
 c                        initialize local work
 c
+      local_work%dt = tstep
       local_work%blk = blk
       local_work%span = span
       local_work%felem = felem
@@ -141,7 +143,9 @@ c
       local_work%iter = iter ! global newton iteration (>1)
       local_work%geo_non_flg = geo_non_flg
       local_work%is_cohes_elem = .false.
+      local_work%block_has_nonlocal_solids = .false.
       local_work%mat_type = mat_type
+      local_work%matnum = currmat
       local_work%segmental = .false.
       local_work%number_points = 0
       local_work%curve_set_number = 0
@@ -154,12 +158,14 @@ c
       local_work%lnelas_vec = .false.
       local_work%bbar_flg = .true.
       local_work%material_cut_step = .false.
-      local_work%adaptive_flag = .false.
+      local_work%adaptive_flag = adaptive_flag
       local_work%eps_bbar = zero
       local_work%is_solid_matl = .true.
       local_work%is_umat = .false.
       local_work%umat_stress_type = 1
-      local_work%is_crys_pls = .false.
+      local_work%is_crys_pls = (mat_type .eq. 10)
+      local_work%temperatures = 297.0D0
+      local_work%temperatures_ref = 297.0D0
 c
 c     allocate memory for local_work according to material model
 c
@@ -178,7 +184,8 @@ c     ce_0, cd_n, cd_mid, cd_n1: nodal coordinate
 c                 ***hard coded for now***
 c
 c                hard code material parameters
-      call mm01_hardCoded
+c     call mm01_hardCoded
+      call rknstr_set_up_materials
 c
 c                grab global variables to local_work
 c
@@ -255,6 +262,14 @@ c     recover stress and stiffness
 c
       call rstgp1( local_work, uddt )
 c
+c           For CP model, calculate the gradient of the elastic
+c           rotations at the element level by linear curve fit.
+c
+c           For linear models this will just be based on the plastic rotations
+c           which may or may not be a realistic assumption
+c
+      if( local_work%mat_type .eq. 10 ) call rknstr_finish_cp
+c
 c     scatter local variables to global
 c
       call rplstr( span, felem, ngp, mat_type, iter,
@@ -325,59 +340,667 @@ c     deallocate( A_blk_n1 )
       return
       contains
 c     ========
+c     ****************************************************************
+c     *                                                              *
+c     *                   subroutine rknstr_set_up_materials         *
+c     *                                                              *
+c     *                       written by : rhd                       *
+c     *                                                              *
+c     *                   last modified : 9/26/2017 rhd              *
+c     *                                                              *
+c     *     make calls to the specific material model for block      *
+c     *                                                              *
+c     ****************************************************************
+c
+c
+      subroutine rknstr_set_up_materials
+      implicit none
+c
+      logical :: adaptive
+      integer :: iout
+c
+      adaptive = adaptive_flag .and. step .gt. 1
+      iout = local_work%iout
+c
+      select case ( mat_type )
+c
+        case ( 1 )
+          call setup_mm01_rknstr( span, adaptive, local_work )
+c         call setup_segmental(  span, props, lprops, iprops,
+c    &                           local_work )
+c
+c       case ( 2 )
+c         call setup_mm02_rknstr( span, props, lprops, iprops,
+c    &                            local_work )
+c
+c       case ( 3 )
+c         call setup_mm03_rknstr( span, props, lprops, iprops,
+c    &                            adaptive, local_work )
+c         call setup_segmental(  span, props, lprops, iprops,
+c    &                           local_work )
+c
+c       case ( 4 )
+c         call mm04_init( iout, span, felem, props, lprops, iprops,
+c    &                    local_work%cohes_type,
+c    &                    local_work%intf_prp_block,
+c    &                    matprp(1,local_work%matnum),
+c    &                    local_work%cohes_rot_block )
+c
+c       case ( 5 )
+c         call setup_mm05_rknstr( span, props, lprops, iprops,
+c    &                            adaptive, local_work )
+c         call setup_segmental(  span, props, lprops, iprops,
+c    &                           local_work )
+c
+c       case ( 6 )
+c         call setup_mm06_rknstr( span, props, lprops, iprops,
+c    &                            adaptive, local_work )
+c
+c       case ( 7 )
+c         call setup_mm07_rknstr( span, props, lprops, iprops,
+c    &                            adaptive, local_work )
+c
+c       case ( 8 )
+c         call setup_umat_rknstr( span, props, lprops, iprops,
+c    &                            adaptive, local_work )
+c
+        case ( 10 )
+          call setup_mm10_rknstr( span, adaptive, local_work )
+c
+        case default
+          write(iout,*) '>>> invalid material model number'
+          write(iout,*) '    in rknstr. abort execution'
+          call die_abort
+          stop
+c
+      end select
+c
+c           If this material is going to have interface damage applied to it,
+c           call the setup function for mm11
+c
+c     if( local_work%is_inter_dmg ) then
+c       call setup_mm11_rknstr( span, props, lprops, iprops,
+c    &                            adaptive, local_work )
+c     end if
+c
+      return
+      end subroutine rknstr_set_up_materials
 c
 c     ****************************************************************
 c     *                                                              *
-c     *                  subroutine mm01_hardCoded                   *
+c     *                   subroutine rknstr_finish_cp                *
+c     *                                                              *
+c     *                       written by : rhd                       *
+c     *                                                              *
+c     *                   last modified : 9/26/2017 rhd              *
+c     *                                                              *
+c     *     make calls to the specific material model for block      *
+c     *                                                              *
+c     ****************************************************************
+c
+c
+      subroutine rknstr_finish_cp
+      implicit none
+c
+      integer :: sh, eh, i, iblkrow, rs, re
+c
+c              calculate the gradient of the elastic
+c              rotations at the element level by linear curve fit.
+c
+c     sh  = indexes_common(2,1) ! first index of grad_fe
+c     eh  = indexes_common(2,2) ! last index of grad_fe
+c
+c     do i = 1, local_work%span
+c       iblkrow = i
+c       if( local_work%ncrystals(i) .gt. 1 )  then
+c            local_work%elem_hist1(i,sh:eh,1:ngp) = zero
+c       else
+c        rs = index_crys_hist(1,3,1) ! first index of Rp, 1st crystal
+c        re = index_crys_hist(1,3,2) ! last index of Rp, 1st crystal
+c        call mm10_calc_grads( ngp, elem_type, order, geonl,
+c    &       local_work%rot_blk_n1(1,1,1),
+c    &       local_work%jac(1,1,1),
+c    &       local_work%elem_hist(1,rs,1),
+c    &       local_work%elem_hist1(1,sh,1), iout, iblkrow, span,
+c    &       local_work%hist_size_for_blk )
+c       end if
+c     end do
+c
+      return
+      end subroutine rknstr_finish_cp
+      end subroutine ! do_nleps_block
+c
+c
+c     ****************************************************************
+c     *                                                              *
+c     *                   subroutine setup_mm01_rknstr               *
 c     *                                                              *
 c     *                       written by : RM                        *
 c     *                                                              *
-c     *                   last modified : 2/07/2018 rhd              *
+c     *                   last modified : 5/17/2018 RM               *
+c     *                                                              *
+c     *     set up material model #1 (bilinear mises) for stress     *
+c     *     updating                                                 *
+c     *                                                              *
+c     ****************************************************************
+c
+      subroutine setup_mm01_rknstr( span, adaptive, local_work )
+      use fft, only: matprp, lmtprp, imatprp, dmatprp, smatprp
+      implicit none
+      include 'param_def'
+      include 'include_sig_up'
+      
+c                     global
+      integer :: span
+      logical :: adaptive
+
+c                     local
+      integer :: currmat, i
+      real(8) :: ym, nu, beta, tan_e, yld, alpha, rho
+      
+      currmat = local_work%matnum
+      
+      do i = 1, span
+        ym                       = matprp(1,currmat)
+        nu                       = matprp(2,currmat)
+        yld                      = matprp(5,currmat)
+        tan_e                    = matprp(4,currmat)
+        rho                      = matprp(7,currmat)
+        alpha                    = matprp(6,currmat)
+        beta                     = matprp(3,currmat)
+        local_work%e_vec(i)      = ym
+        local_work%nu_vec(i)     = nu
+        local_work%beta_vec(i)   = beta
+        local_work%tan_e_vec(i)  =  tan_e
+        local_work%sigyld_vec(i) = yld
+        local_work%h_vec(i)      = tan_e*ym/(ym - tan_e) 
+        local_work%e_vec_n(i)    = ym
+        local_work%nu_vec_n(i)   = nu
+      end do
+
+      return
+      end subroutine
+c
+c     ****************************************************************
+c     *                                                              *
+c     *                   subroutine setup_mm10_rknstr               *
+c     *                                                              *
+c     *                       written by : mcm                       *
+c     *                                                              *
+c     *                   last modified : 1/9/2017 rhd               *
+c     *                                                              *
+c     *     set up material model #10 (crystal plasticity)           *
+c     *     for stress updating: values constant across all g. pts.  *
 c     *                                                              *
 c     ****************************************************************
 c
 c
-      subroutine mm01_hardCoded
-      implicit none 
-      real(8) :: ym, nu, beta, tan_e, yld, alpha, rho
-      
-      gp_dtemps = zero ! temperature change over step
-      
-c                    grab material parameters from global to local
-      do ii = 1, span
-        currmat = matList(felem + ii - 1)
-        ym    = matprp(1,currmat)
-        nu    = matprp(2,currmat)
-        yld   = matprp(5,currmat)
-        tan_e = matprp(4,currmat)
-        rho   = matprp(7,currmat)
-        alpha = matprp(6,currmat)
-        beta  = matprp(3,currmat)
-        local_work%e_vec(ii) = ym 
-        local_work%nu_vec(ii) = nu
-        local_work%beta_vec(ii) = beta
-        local_work%tan_e_vec(ii) =  tan_e
-        local_work%sigyld_vec(ii) = yld
-        local_work%h_vec(ii) = tan_e*ym/(ym - tan_e) 
-        local_work%e_vec_n(ii) = ym
-        local_work%nu_vec_n(ii) = nu
-      end do
+      subroutine setup_mm10_rknstr( span, adaptive, local_work )
+c     use segmental_curves
+      use fft, only : matprp, lmtprp, imatprp, dmatprp, smatprp
+      use crystal_data, only : c_array, angle_input, crystal_input,
+     &                              data_offset
+c
+      implicit none
+      include 'param_def'
+c
+c                    parameter declarations
+c
+c     integer :: iprops(mxelpr,mxvl), span
+c     real    :: props(mxelpr,mxvl)
+c     logical :: lprops(mxelpr,mxvl), adaptive
+      integer :: span
+      logical :: adaptive
+      include 'include_sig_up'
+c
+c                    local
+c
+      integer :: i, out, matnum, ctotal, c, cnum, s, elnum, osn
+      double precision :: angles(3), bs(3), ns(3), temp66(6,6),
+     &                    rot(3,3), trans_rot(3,3),
+     &                    temp_vec3(3),
+     &                    A(3,3), trans_A(3,3), A_symm(3,3),
+     &                    A_asymm(3,3),
+     &                    Rstiff(6,6), trans_Rstiff(6,6)
+      double precision, parameter :: half = 0.5d00, zero = 0.0d00
+      character :: aconv*5, atype*7
+c
+      ctotal = 0
+      out = local_work%iout
+      matnum = local_work%matnum
+c
+      do i = 1, span
+c
+       call setup_mm10_rknstr_a( 1 )  ! selected props -> local_work
+c
+c              will need to (in the near future) extract crystal
+c              and orientation information.  Also possibly change
+c              to allow for variable number of crystals in each
+c              element block.
+c
+       elnum = local_work%felem+i-1
+c
+       do c = 1, local_work%ncrystals(i)
+c
+         call setup_mm10_rknstr_a( 2 ) ! get data for this crystal
+         call setup_mm10_rknstr_a( 3 ) ! put props into local_work
+         call setup_mm10_rknstr_a( 4 ) ! get crystal->reference rot
+c
+c                     set up and rotate our orientation tensors
+c
+         rot       = local_work%c_props(i,c)%rotation_g
+         call set_up_mm10_rknstr_c( trans_rot, rot, 3 )
+         call setup_mm10_rknstr_a( 5 ) ! get crystal->reference rots
+c
+c                      rotate forward our stiffness tensor
+c
+         call mm10_RT2RVE( trans_rot, Rstiff ) ! makes Rstiff
+         call set_up_mm10_rknstr_c( trans_Rstiff, Rstiff, 6)
+         temp66 = matmul( local_work%c_props(i,c)%init_elast_stiff,
+     &                       trans_Rstiff )
+         local_work%c_props(i,c)%init_elast_stiff = matmul(
+     &               Rstiff, temp66 )   ! 6x6 * 6xx
+       end do ! on crystals
+c
+           ctotal = ctotal + local_work%ncrystals(i)
+c
+      end do ! on span
 
-      local_work%rtse = zero ! "relative" trial elastic stress rate
-        
-c     other properties required by rstgp1
-      local_work%block_energy = zero
-      local_work%block_plastic_work = zero
-      local_work%beta_fact = zero
-      
-c     other properties required by drive_01_udate
-      local_work%dt = tstep
-      local_work%temperatures = 297.0D0
-      local_work%temperatures_ref = 297.0D0
-
+c
+c                   determine if material model can call for a
+c                   reduction in the adaptive step size
+c
+      local_work%allow_cut = adaptive .and. lmtprp(22,matnum)
+c
+c
       return
-      end subroutine ! mm01_hardCoded
-      end subroutine ! do_nleps_block
+
+ 9501 format(/,1x,'>>>> Not implemented yet in rknstr setup!'/)
+ 9503 format(/,1x,'>>>> System error: unexpected angle type in rknstr!',
+     &            ' Aborting.'/)
+ 9504 format(/,1x,'>>>> System error: unexpected angle conv in rknstr!',
+     &            ' Aborting.'/)
+
+      contains
+c     ========
+      subroutine set_up_mm10_rknstr_b( a, b, c )
+      implicit none
+      double precision :: a(3), b(3,3), c(3)
+c
+c                     a = [b] * c
+c
+      a(1) = b(1,1)*c(1) + b(1,2)*c(2) + b(1,3)*c(3)
+      a(2) = b(2,1)*c(1) + b(2,2)*c(2) + b(2,3)*c(3)
+      a(3) = b(3,1)*c(1) + b(3,2)*c(2) + b(3,3)*c(3)
+c
+      return
+      end subroutine set_up_mm10_rknstr_b
+
+      subroutine set_up_mm10_rknstr_c( a, b, n )
+      implicit none
+      integer :: n, i, j
+      double precision :: a(n,n), b(n,n)
+c
+c                     a = trans[ b ]
+c
+      if( n .eq. 3 ) then
+         do i = 1, 3
+!DIR$ VECTOR ALIGNED
+            do j = 1, 3
+               a(i,j) = b(j,i)
+            end do
+         end do
+         return
+      end if
+c
+       do i = 1, 6
+!DIR$ VECTOR ALIGNED
+         do j = 1, 6
+            a(i,j) = b(j,i)
+         end do
+      end do
+c
+      return
+      end subroutine set_up_mm10_rknstr_c
+
+      subroutine set_up_mm10_rknstr_d( trans_A, A, bs, ns )
+      implicit none
+c
+      integer :: i, j
+      double precision :: trans_A(3,3), A(3,3), bs(3), ns(3)
+c
+      double precision :: spreadbs(3,3), spreadns(3,3)
+c
+      spreadbs(1,1) = bs(1)
+      spreadbs(2,1) = bs(2)
+      spreadbs(3,1) = bs(3)
+      spreadbs(1,2) = bs(1)
+      spreadbs(2,2) = bs(2)
+      spreadbs(3,2) = bs(3)
+      spreadbs(1,3) = bs(1)
+      spreadbs(2,3) = bs(2)
+      spreadbs(3,3) = bs(3)
+c
+      spreadns(1,1) = ns(1)
+      spreadns(2,1) = ns(1)
+      spreadns(3,1) = ns(1)
+      spreadns(1,2) = ns(2)
+      spreadns(2,2) = ns(2)
+      spreadns(3,2) = ns(2)
+      spreadns(1,3) = ns(3)
+      spreadns(2,3) = ns(3)
+      spreadns(3,3) = ns(3)
+c
+      do i = 1, 3
+!DIR$ VECTOR ALIGNED
+        do j = 1, 3
+         A(i,j) = spreadbs(i,j) * spreadns(i,j)
+         trans_A(j,i) = A(i,j)
+        end do
+      end do
+c
+      return
+c
+      end  subroutine set_up_mm10_rknstr_d
+
+
+
+
+      subroutine setup_mm10_rknstr_a( dowhat )
+      implicit none
+c
+      integer :: dowhat
+
+      select case( dowhat )
+
+      case( 1 )
+c
+        local_work%alpha_vec(i,1) = matprp(26,matnum)
+        local_work%alpha_vec(i,2) = matprp(27,matnum)
+        local_work%alpha_vec(i,3) = matprp(28,matnum)
+        local_work%alpha_vec(i,4) = matprp(29,matnum)
+        local_work%alpha_vec(i,5) = matprp(30,matnum)
+        local_work%alpha_vec(i,6) = matprp(31,matnum)
+c
+        local_work%alpha_vec_n(i,1) = matprp(26,matnum)
+        local_work%alpha_vec_n(i,2) = matprp(27,matnum)
+        local_work%alpha_vec_n(i,3) = matprp(28,matnum)
+        local_work%alpha_vec_n(i,4) = matprp(29,matnum)
+        local_work%alpha_vec_n(i,5) = matprp(30,matnum)
+        local_work%alpha_vec_n(i,6) = matprp(31,matnum)
+c
+        local_work%debug_flag(i) = lmtprp(13,matnum)
+        local_work%local_tol(i) = dmatprp(100,matnum)
+c
+c              may eventually change this to allow for
+c              different # of crystals in block
+c
+        local_work%ncrystals(i) = imatprp(101,matnum)
+c
+        local_work%angle_convention(i) = imatprp(102,matnum)
+        local_work%angle_type(i) = imatprp(103,matnum)
+c
+      case( 2 )
+c
+c              get the local crystal number
+c
+        if( imatprp(104,matnum) .eq. 1 ) then
+              cnum = imatprp(105,matnum)
+        elseif( imatprp(104,matnum) .eq. 2 ) then
+              osn = data_offset(elnum)
+              cnum = crystal_input(osn,c)
+c
+c             couldn't do this earlier, so check here
+c
+              if( (cnum .gt. max_crystals) .or.
+     &              (cnum .lt. 0) ) then
+               write (out,'("Crystal ", i3, " not valid")')
+     &              cnum
+                    call die_gracefully
+              end if
+        else
+              write(out,9502)
+              call die_gracefully
+        end if
+c
+c             get the local orientation
+c
+        if (imatprp(107,matnum ) .eq. 1) then
+             angles(1) = dmatprp(108,matnum)
+             angles(2) = dmatprp(109,matnum)
+             angles(3) = dmatprp(110,matnum)
+        elseif( imatprp(107,matnum) .eq. 2 ) then
+             osn = data_offset(elnum)
+             angles(1:3) = angle_input(osn,c,1:3)
+        else
+             write (out,9502)
+             call die_gracefully
+        end if
+c
+      case( 3 )
+c
+c             we have the properties, we just need to extract
+c             into our local structure
+c
+        local_work%c_props(i,c)%init_elast_stiff =
+     &        c_array(cnum)%elast_stiff
+        local_work%c_props(i,c)%init_angles = angles
+        local_work%c_props(i,c)%nslip = c_array(cnum)%nslip
+        local_work%c_props(i,c)%rateN = c_array(cnum)%harden_n
+        local_work%c_props(i,c)%tauHat_y = c_array(cnum)%tau_hat_y
+        local_work%c_props(i,c)%Go_y = c_array(cnum)%g_o_y
+        local_work%c_props(i,c)%tauHat_v = c_array(cnum)%tau_hat_v
+        local_work%c_props(i,c)%Go_v = c_array(cnum)%g_o_v
+        local_work%c_props(i,c)%tau_a = c_array(cnum)%tau_a
+        local_work%c_props(i,c)%burgers = c_array(cnum)%b
+        local_work%c_props(i,c)%p_v = c_array(cnum)%p_v
+        local_work%c_props(i,c)%q_v = c_array(cnum)%q_v
+        local_work%c_props(i,c)%p_y = c_array(cnum)%p_y
+        local_work%c_props(i,c)%q_y = c_array(cnum)%q_y
+        local_work%c_props(i,c)%boltzman = c_array(cnum)%boltz
+        local_work%c_props(i,c)%theta_o = c_array(cnum)%theta_o
+        local_work%c_props(i,c)%eps_dot_o_v = c_array(cnum)%eps_dot_o_v
+        local_work%c_props(i,c)%eps_dot_o_y = c_array(cnum)%eps_dot_o_y
+        local_work%c_props(i,c)%mu_o = c_array(cnum)%mu_o
+        local_work%c_props(i,c)%D_o  = c_array(cnum)%D_o
+c
+        local_work%c_props(i,c)%t_o = c_array(cnum)%t_o
+        local_work%c_props(i,c)%tau_a = c_array(cnum)%tau_a
+        local_work%c_props(i,c)%k_o = c_array(cnum)%k_o
+        local_work%c_props(i,c)%h_type = c_array(cnum)%h_type
+        local_work%c_props(i,c)%s_type = c_array(cnum)%slip_type
+        local_work%c_props(i,c)%cnum = cnum
+        local_work%c_props(i,c)%num_hard = c_array(cnum)%num_hard
+        local_work%c_props(i,c)%tang_calc = c_array(cnum)%tang_calc
+        local_work%c_props(i,c)%u1 = c_array(cnum)%u1
+        local_work%c_props(i,c)%u2 = c_array(cnum)%u2
+        local_work%c_props(i,c)%u3 = c_array(cnum)%u3
+        local_work%c_props(i,c)%u4 = c_array(cnum)%u4
+        local_work%c_props(i,c)%u5 = c_array(cnum)%u5
+        local_work%c_props(i,c)%u6 = c_array(cnum)%u6
+        local_work%c_props(i,c)%u7 = c_array(cnum)%u7
+        local_work%c_props(i,c)%u8 = c_array(cnum)%u8
+        local_work%c_props(i,c)%u9 = c_array(cnum)%u9
+        local_work%c_props(i,c)%u10 = c_array(cnum)%u10
+        local_work%c_props(i,c)%tau_y = c_array(cnum)%tau_y
+        local_work%c_props(i,c)%tau_v = c_array(cnum)%tau_v
+        local_work%c_props(i,c)%voche_m = c_array(cnum)%voche_m
+        local_work%c_props(i,c)%iD_v = c_array(cnum)%iD_v
+c
+        local_work%c_props(i,c)%cp_001 = c_array(cnum)%cp_001
+        local_work%c_props(i,c)%cp_002 = c_array(cnum)%cp_002
+        local_work%c_props(i,c)%cp_003 = c_array(cnum)%cp_003
+        local_work%c_props(i,c)%cp_004 = c_array(cnum)%cp_004
+        local_work%c_props(i,c)%cp_005 = c_array(cnum)%cp_005
+        local_work%c_props(i,c)%cp_006 = c_array(cnum)%cp_006
+        local_work%c_props(i,c)%cp_007 = c_array(cnum)%cp_007
+        local_work%c_props(i,c)%cp_008 = c_array(cnum)%cp_008
+        local_work%c_props(i,c)%cp_009 = c_array(cnum)%cp_009
+        local_work%c_props(i,c)%cp_010 = c_array(cnum)%cp_010
+        local_work%c_props(i,c)%cp_011 = c_array(cnum)%cp_011
+        local_work%c_props(i,c)%cp_012 = c_array(cnum)%cp_012
+        local_work%c_props(i,c)%cp_013 = c_array(cnum)%cp_013
+        local_work%c_props(i,c)%cp_014 = c_array(cnum)%cp_014
+        local_work%c_props(i,c)%cp_015 = c_array(cnum)%cp_015
+        local_work%c_props(i,c)%cp_016 = c_array(cnum)%cp_016
+        local_work%c_props(i,c)%cp_017 = c_array(cnum)%cp_017
+        local_work%c_props(i,c)%cp_018 = c_array(cnum)%cp_018
+        local_work%c_props(i,c)%cp_019 = c_array(cnum)%cp_019
+        local_work%c_props(i,c)%cp_020 = c_array(cnum)%cp_020
+        local_work%c_props(i,c)%cp_021 = c_array(cnum)%cp_021
+        local_work%c_props(i,c)%cp_022 = c_array(cnum)%cp_022
+        local_work%c_props(i,c)%cp_023 = c_array(cnum)%cp_023
+        local_work%c_props(i,c)%cp_024 = c_array(cnum)%cp_024
+        local_work%c_props(i,c)%cp_025 = c_array(cnum)%cp_025
+        local_work%c_props(i,c)%cp_026 = c_array(cnum)%cp_026
+        local_work%c_props(i,c)%cp_027 = c_array(cnum)%cp_027
+        local_work%c_props(i,c)%cp_028 = c_array(cnum)%cp_028
+        local_work%c_props(i,c)%cp_029 = c_array(cnum)%cp_029
+        local_work%c_props(i,c)%cp_030 = c_array(cnum)%cp_030
+        local_work%c_props(i,c)%cp_031 = c_array(cnum)%cp_031
+        local_work%c_props(i,c)%cp_032 = c_array(cnum)%cp_032
+        local_work%c_props(i,c)%cp_033 = c_array(cnum)%cp_033
+        local_work%c_props(i,c)%cp_034 = c_array(cnum)%cp_034
+        local_work%c_props(i,c)%cp_035 = c_array(cnum)%cp_035
+        local_work%c_props(i,c)%cp_036 = c_array(cnum)%cp_036
+        local_work%c_props(i,c)%cp_037 = c_array(cnum)%cp_037
+        local_work%c_props(i,c)%cp_038 = c_array(cnum)%cp_038
+        local_work%c_props(i,c)%cp_039 = c_array(cnum)%cp_039
+        local_work%c_props(i,c)%cp_040 = c_array(cnum)%cp_040
+        local_work%c_props(i,c)%cp_041 = c_array(cnum)%cp_041
+        local_work%c_props(i,c)%cp_042 = c_array(cnum)%cp_042
+        local_work%c_props(i,c)%cp_043 = c_array(cnum)%cp_043
+        local_work%c_props(i,c)%cp_044 = c_array(cnum)%cp_044
+        local_work%c_props(i,c)%cp_045 = c_array(cnum)%cp_045
+        local_work%c_props(i,c)%cp_046 = c_array(cnum)%cp_046
+        local_work%c_props(i,c)%cp_047 = c_array(cnum)%cp_047
+        local_work%c_props(i,c)%cp_048 = c_array(cnum)%cp_048
+        local_work%c_props(i,c)%cp_049 = c_array(cnum)%cp_049
+        local_work%c_props(i,c)%cp_050 = c_array(cnum)%cp_050
+        local_work%c_props(i,c)%cp_051 = c_array(cnum)%cp_051
+        local_work%c_props(i,c)%cp_052 = c_array(cnum)%cp_052
+        local_work%c_props(i,c)%cp_053 = c_array(cnum)%cp_053
+        local_work%c_props(i,c)%cp_054 = c_array(cnum)%cp_054
+        local_work%c_props(i,c)%cp_055 = c_array(cnum)%cp_055
+        local_work%c_props(i,c)%cp_056 = c_array(cnum)%cp_056
+        local_work%c_props(i,c)%cp_057 = c_array(cnum)%cp_057
+        local_work%c_props(i,c)%cp_058 = c_array(cnum)%cp_058
+        local_work%c_props(i,c)%cp_059 = c_array(cnum)%cp_059
+        local_work%c_props(i,c)%cp_060 = c_array(cnum)%cp_060
+        local_work%c_props(i,c)%cp_061 = c_array(cnum)%cp_061
+        local_work%c_props(i,c)%cp_062 = c_array(cnum)%cp_062
+        local_work%c_props(i,c)%cp_063 = c_array(cnum)%cp_063
+        local_work%c_props(i,c)%cp_064 = c_array(cnum)%cp_064
+        local_work%c_props(i,c)%cp_065 = c_array(cnum)%cp_065
+        local_work%c_props(i,c)%cp_066 = c_array(cnum)%cp_066
+        local_work%c_props(i,c)%cp_067 = c_array(cnum)%cp_067
+        local_work%c_props(i,c)%cp_068 = c_array(cnum)%cp_068
+        local_work%c_props(i,c)%cp_069 = c_array(cnum)%cp_069
+        local_work%c_props(i,c)%cp_070 = c_array(cnum)%cp_070
+        local_work%c_props(i,c)%cp_071 = c_array(cnum)%cp_071
+        local_work%c_props(i,c)%cp_072 = c_array(cnum)%cp_072
+        local_work%c_props(i,c)%cp_073 = c_array(cnum)%cp_073
+        local_work%c_props(i,c)%cp_074 = c_array(cnum)%cp_074
+        local_work%c_props(i,c)%cp_075 = c_array(cnum)%cp_075
+        local_work%c_props(i,c)%cp_076 = c_array(cnum)%cp_076
+        local_work%c_props(i,c)%cp_077 = c_array(cnum)%cp_077
+        local_work%c_props(i,c)%cp_078 = c_array(cnum)%cp_078
+        local_work%c_props(i,c)%cp_079 = c_array(cnum)%cp_079
+        local_work%c_props(i,c)%cp_080 = c_array(cnum)%cp_080
+        local_work%c_props(i,c)%cp_081 = c_array(cnum)%cp_081
+        local_work%c_props(i,c)%cp_082 = c_array(cnum)%cp_082
+        local_work%c_props(i,c)%cp_083 = c_array(cnum)%cp_083
+        local_work%c_props(i,c)%cp_084 = c_array(cnum)%cp_084
+        local_work%c_props(i,c)%cp_085 = c_array(cnum)%cp_085
+        local_work%c_props(i,c)%cp_086 = c_array(cnum)%cp_086
+        local_work%c_props(i,c)%cp_087 = c_array(cnum)%cp_087
+        local_work%c_props(i,c)%cp_088 = c_array(cnum)%cp_088
+        local_work%c_props(i,c)%cp_089 = c_array(cnum)%cp_089
+        local_work%c_props(i,c)%cp_090 = c_array(cnum)%cp_090
+        local_work%c_props(i,c)%cp_091 = c_array(cnum)%cp_091
+        local_work%c_props(i,c)%cp_092 = c_array(cnum)%cp_092
+        local_work%c_props(i,c)%cp_093 = c_array(cnum)%cp_093
+        local_work%c_props(i,c)%cp_094 = c_array(cnum)%cp_094
+        local_work%c_props(i,c)%cp_095 = c_array(cnum)%cp_095
+        local_work%c_props(i,c)%cp_096 = c_array(cnum)%cp_096
+        local_work%c_props(i,c)%cp_097 = c_array(cnum)%cp_097
+        local_work%c_props(i,c)%cp_098 = c_array(cnum)%cp_098
+        local_work%c_props(i,c)%cp_099 = c_array(cnum)%cp_099
+        local_work%c_props(i,c)%cp_100 = c_array(cnum)%cp_100
+c
+c          flags to control CP internal solvers
+c
+        local_work%c_props(i,c)%solver = c_array(cnum)%solver
+        local_work%c_props(i,c)%strategy = c_array(cnum)%strategy
+        local_work%c_props(i,c)%gpall = c_array(cnum)%gpall
+        local_work%c_props(i,c)%gpp = c_array(cnum)%gpp
+        local_work%c_props(i,c)%st_it(1:3) = c_array(cnum)%st_it(1:3)
+        local_work%c_props(i,c)%method = c_array(cnum)%method
+        local_work%c_props(i,c)%miter = c_array(cnum)%miter
+        local_work%c_props(i,c)%atol = c_array(cnum)%atol
+        local_work%c_props(i,c)%atol1 = c_array(cnum)%atol1
+        local_work%c_props(i,c)%rtol = c_array(cnum)%rtol
+        local_work%c_props(i,c)%rtol1 = c_array(cnum)%rtol1
+        local_work%c_props(i,c)%xtol = c_array(cnum)%xtol
+        local_work%c_props(i,c)%xtol1 = c_array(cnum)%xtol1
+c
+c          alternative model flag
+c
+        local_work%c_props(i,c)%alter_mode = c_array(cnum)%alter_mode
+c
+      case( 4 )
+c
+c          reference rotation
+c
+        if (local_work%angle_type(i) .eq. 1) then
+              atype = "degrees"
+        elseif (local_work%angle_type(i) .eq. 2) then
+              atype = "radians"
+        else
+              write(out,9503)
+              call die_gracefully
+        end if
+        if (local_work%angle_convention(i) .eq. 1) then
+              aconv="kocks"
+        else
+              write(out,9504)
+              call die_gracefully
+        end if
+        call mm10_rotation_matrix( local_work%c_props(i,c)%init_angles,
+     &        aconv, atype, local_work%c_props(i,c)%rotation_g, out )
+c
+      case( 5 )
+c
+c          rotation on each slip system for this crystal
+c
+        do s = 1, local_work%c_props(i,c)%nslip
+            temp_vec3 = c_array(cnum)%bi(s,1:3)
+            call set_up_mm10_rknstr_b( bs, trans_rot, temp_vec3 )
+            temp_vec3 =  c_array(cnum)%ni(s,1:3)
+            call set_up_mm10_rknstr_b( ns, trans_rot, temp_vec3 )
+            local_work%c_props(i,c)%ns(1:3,s) = ns
+            call set_up_mm10_rknstr_d( trans_A, A, bs, ns )
+            A_symm  = half * ( A + trans_A )
+            A_asymm = half * ( A - trans_A )
+            call mm10_ET2EV( A_symm,  local_work%c_props(i,c)%ms(1,s) )
+            call mm10_WT2WV( A_asymm, local_work%c_props(i,c)%qs(1,s) )
+        end do ! on slip systems
+
+      end select
+c
+      return
+ 9502 format(/,1x,'>>>> System error: unexpected input type in rknstr!',
+     &            ' Aborting.'/)
+ 9503 format(/,1x,'>>>> System error: unexpected angle type in rknstr!',
+     &            ' Aborting.'/)
+ 9504 format(/,1x,'>>>> System error: unexpected angle conv in rknstr!',
+     &            ' Aborting.'/)
+
+c
+      end subroutine setup_mm10_rknstr_a
+
+c
+      end subroutine setup_mm10_rknstr
 c
 c     ****************************************************************
 c     *                                                              *

@@ -88,3 +88,18 @@ c
       implicit none
       return
       end subroutine
+c
+c     ****************************************************************
+c     *                                                              *
+c     *                wmpi_compute_set_history_locs                 *
+c     *                                                              *
+c     *                       written by : tjt                       *
+c     *                                                              *
+c     *                   last modified : 5/12/2017 tjt              *
+c     *                                                              *
+c     ****************************************************************
+c
+      subroutine  wmpi_compute_set_history_locs
+      implicit none
+      return
+      end subroutine

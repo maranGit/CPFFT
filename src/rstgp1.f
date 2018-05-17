@@ -742,8 +742,8 @@ c    &                            local_work, uddt_displ, iout )
       use fft, only : matprp, lmtprp, imatprp, dmatprp, smatprp
 c    &                      extrapolated_du, non_zero_imposed_du
 c     use segmental_curves, only : max_seg_points
-      use elem_block_data, only : gbl_cep_blocks => cep_blocks,
-     &                            nonlocal_flags, nonlocal_data_n1
+c     use elem_block_data, only : gbl_cep_blocks => cep_blocks,
+c    &                            nonlocal_flags, nonlocal_data_n1
 c
       implicit none
       include 'param_def'
@@ -771,7 +771,7 @@ c
       logical :: signal_flag, local_debug, temperatures,
      &           temperatures_ref, check_D, iter_0_extrapolate_off
       data zero, one / 0.0d0, 1.0d0 /
-      logical :: extraoplated_du
+      logical :: extrapolated_du
 
 c
       dtime             = local_work%dt
@@ -833,8 +833,8 @@ c
       gp_dtemps = zero
       gp_rtemps = zero
 
-      if( local_work%block_has_nonlocal_solids )
-     &    local_work%nonlocal_state_blk = zero ! array
+c     if( local_work%block_has_nonlocal_solids )
+c    &    local_work%nonlocal_state_blk = zero ! array
 c
 c            for small displacement analysis, set integration point
 c            rotations to identity.
@@ -887,8 +887,8 @@ c!DIR$ VECTOR ALIGNED
      &           nonlocal_shared_state_size,  ! value in param_def
      &           iter_0_extrapolate_off )
 c
-      if( local_work%block_has_nonlocal_solids )
-     &    call drive_10_non_local ! finish nonlocal shared
+c     if( local_work%block_has_nonlocal_solids )
+c    &    call drive_10_non_local ! finish nonlocal shared
 
       if( local_debug )  write(iout,9120) felem, gpn, span
 c
@@ -949,57 +949,57 @@ c     *     support routine for mm10 material driver.                *
 c     *     should be inlined                                        *
 c     *                                                              *
 c     ****************************************************************
-
-      subroutine drive_10_non_local
-      implicit none
-
-      integer :: n, i, elem_num
-      double precision :: real_npts
 c
-      n = nonlocal_shared_state_size ! for convenience from param_def
-      if( local_debug ) write(iout,9010) n
+c     subroutine drive_10_non_local
+c     implicit none
 c
-      if( gpn .eq. 1 ) then  ! zero global values for elements
-        do i = 1, span
-          elem_num = felem + i - 1
-          if( nonlocal_flags(elem_num) )
-     &         nonlocal_data_n1(elem_num)%state_values(1:n) = zero
-        end do
-      end if
+c     integer :: n, i, elem_num
+c     double precision :: real_npts
 c
-      do i = 1, span ! add in this gpn nonlocal values
-       elem_num = felem + i - 1
-       if( nonlocal_flags(elem_num) )
-     &       nonlocal_data_n1(elem_num)%state_values(1:n) =
-     &       nonlocal_data_n1(elem_num)%state_values(1:n) +
-     &       local_work%nonlocal_state_blk(i,1:n)
-      end do
+c     n = nonlocal_shared_state_size ! for convenience from param_def
+c     if( local_debug ) write(iout,9010) n
 c
-      if( gpn .eq. local_work%num_int_points ) then
-         real_npts = dble( local_work%num_int_points )
-         do i = 1, span
-          elem_num = felem + i - 1
-          if( nonlocal_flags(elem_num) )
-     &      nonlocal_data_n1(elem_num)%state_values(1:n) =
-     &      nonlocal_data_n1(elem_num)%state_values(1:n) / real_npts
-         end do
+c     if( gpn .eq. 1 ) then  ! zero global values for elements
+c       do i = 1, span
+c         elem_num = felem + i - 1
+c         if( nonlocal_flags(elem_num) )
+c    &         nonlocal_data_n1(elem_num)%state_values(1:n) = zero
+c       end do
+c     end if
+c
+c     do i = 1, span ! add in this gpn nonlocal values
+c      elem_num = felem + i - 1
+c      if( nonlocal_flags(elem_num) )
+c    &       nonlocal_data_n1(elem_num)%state_values(1:n) =
+c    &       nonlocal_data_n1(elem_num)%state_values(1:n) +
+c    &       local_work%nonlocal_state_blk(i,1:n)
+c     end do
+c
+c     if( gpn .eq. local_work%num_int_points ) then
+c        real_npts = dble( local_work%num_int_points )
+c        do i = 1, span
+c         elem_num = felem + i - 1
+c         if( nonlocal_flags(elem_num) )
+c    &      nonlocal_data_n1(elem_num)%state_values(1:n) =
+c    &      nonlocal_data_n1(elem_num)%state_values(1:n) / real_npts
+c        end do
 c         write(iout,*) '.. drive_mm10. avg nonlocal. blk: ',now_blk
 c         do i = 1, span
 c         write(iout,9100) felem+i-1,
 c     &      nonlocal_data_n1(elem_num)%state_values(1:n)
 c         end do
-      end if
+c     end if
 c
- 9010 format(/,'      processing nonlocal values. # values: ',i2 )
- 9100 format(10x,i10,5e14.6)
-      return
-      end subroutine  drive_10_non_local
+c9010 format(/,'      processing nonlocal values. # values: ',i2 )
+c9100 format(10x,i10,5e14.6)
+c     return
+c     end subroutine  drive_10_non_local
 
 
 
 c     ****************************************************************
 c     *                                                              *
-c     *   ==> no longer called:  subroutine drive_10_update_b                 *
+c     *   ==> no longer called:  subroutine drive_10_update_b        *
 c     *                                                              *
 c     *                       written by : rhd                       *
 c     *                                                              *

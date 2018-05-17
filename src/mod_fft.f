@@ -46,6 +46,7 @@ c
       equivalence (matprp,imatprp)
       double precision :: dmatprp(300,500)
       character(len=24), dimension(300,500) :: smatprp
+      integer          :: cp_matls_present
 c
 c
 c     ================== Newton-Raphson loop control ==================
