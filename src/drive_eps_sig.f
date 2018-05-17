@@ -297,12 +297,9 @@ c     (3) store in cep_blk_n1(mxvl,nstr,nstr)
 c
       if( geo_non_flg .and. local_work%is_solid_matl ) then
         include_qbar = .false.
-        if(local_debug) write(*,*) "Entering ctran1()"
-        call ctran1( span, felem, blk, cep_blk_n1, qtn1, cs_blk_n1,
-     &               include_qbar, detF, local_work%weights,
-     &               local_work%is_umat, local_work%umat_stress_type,
-     &               local_work%is_crys_pls, local_debug )
-        if(local_debug) write(*,*) "Leaving ctran1()"
+        if(local_debug) write(*,*) "Entering gptns1()"
+        call gptns1( local_work, cep_blk_n1, qtn1 )
+        if(local_debug) write(*,*) "Leaving gptns1()"
       end if
 c
 c     pull back cep_blocks to dP/dF

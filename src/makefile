@@ -19,7 +19,7 @@ OPENMP   = -qopenmp
 COMPILER = ifort
 foption  = -xHOST -ip -fpconstant -traceback -align array64byte \
 				 -qopenmp -reentrancy -no-inline-factor -module $(OD)
-foption  = -module $(OD) -qopenmp
+# foption  = -module $(OD) -qopenmp
 FCOPTS   = -O3 -ip -fpconstant -fixed -72 -g -traceback -ftz\
 				 -module $(OD) -I$(MKLROOT)/include $(OPENMP)
 #
