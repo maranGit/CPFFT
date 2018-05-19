@@ -32,6 +32,11 @@ c                        local
       case (2)
         write(out,9002)
  9002   format(/1x,'>>>>> Error: number of grids must be integer. '/)
+      case (3)
+        write(out,9003) sparam
+ 9003   format(/1x,'>>>>> Error: material ',a24,'has already been ',
+     &             'defined, and cannot',/14x,'be overridden. it can '
+     &             'be deleted and redefined.'/)
       case (4)
         write(out,9004)
  9004   format(/1x,'>>>>> Error: unrecogonized term. '/)

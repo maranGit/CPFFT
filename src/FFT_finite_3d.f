@@ -99,11 +99,14 @@ c                        local
         if(matchs('of',2)) call splunj
         do while (.not.endcrd(dum))
           if(matchs('x_direction',4)) then
-            if(.not.numd(l_x)) call errmsg(4,dum,dums,dumr,dumd)
+            if(.not.numd(l_x)) 
+     &        call errmsg(23,dum,'x_direction',dumr,dumd)
           elseif(matchs('y_direction',4)) then
-            if(.not.numd(l_y)) call errmsg(4,dum,dums,dumr,dumd)
+            if(.not.numd(l_y)) 
+     &        call errmsg(23,dum,'y_direction',dumr,dumd)
           elseif(matchs('z_direction',4)) then
-            if(.not.numd(l_z)) call errmsg(4,dum,dums,dumr,dumd)
+            if(.not.numd(l_z)) 
+     &        call errmsg(23,dum,'z_direction',dumr,dumd)
           else
             call errmsg(4,dum,dums,dumr,dumd)
             call scan()
@@ -116,7 +119,11 @@ c                        local
       case (6)
         if(matchs('automatic',4)) call splunj
         call inelbk( matList )
-        call fftAllocate( 3 )
+c       call fftAllocate( 3 )
+c                       Set up the crystal element properties as well
+        call read_crystal_data
+        call read_simple_angles
+        call avg_cry_elast_props
         readnew = .true.
       case (7)
         do while ( .true. )
@@ -162,8 +169,13 @@ c                        local
         call indypm()
         readnew = .false.
       case (10)
-        call drive_eps_sig( 1, 0 )
         call compute_checks
+c
+c           before analysis of loca (time) step 1, perform
+c           system-wide array initialization.
+c
+        call fftAllocate(3)
+        call drive_eps_sig( 1, 0 )
         call FFT_nr3()
         readnew = .true.
       case (11)

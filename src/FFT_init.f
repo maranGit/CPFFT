@@ -126,6 +126,7 @@ c
       material_model_names(11)(1:) = "interface_damage"
 c
       cp_matls_present = -1
+      nummat = 0
 c
 c     hard code NR loop parameters in fft.mod
 c

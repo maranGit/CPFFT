@@ -10,7 +10,7 @@ c                          local
       real(8) :: dumd
       character lname*80, mname*24, dums*10, unknown*24
       logical, external :: matchs, matchs_exact, endfil, endcrd, numr
-      logical, external :: label, warp3d_matl_num
+      logical, external :: label, warp3d_matl_num, scanms
 c
 c
 c          read and store material name. If not exist, return
@@ -26,13 +26,38 @@ c
       if( nc .gt. 24 ) nc = 24
       mname(1:nc) = lname(1:nc)
 
-      currmat = 1
-      do while ( mat_assigned(currmat) )
-        currmat = currmat + 1
-      end do
-        
-      if ( currmat .gt. mxmat ) call errmsg(6,dum,dums,dumr,dumd)
-      
+c                                                                               
+c                       search for the specified material name in the           
+c                       existing material library. if it is found,              
+c                       print error message and return to the driver            
+c                       subroutine because an existing material can-            
+c                       not be overridden, only deleted and then re-            
+c                       defined.                                                
+c                                                                               
+c                                                                               
+         currmat = 1
+         do while ( mat_assigned(currmat) )
+           if( scanms(matnam(currmat),mname,24 ) ) then
+             call errmsg(3,dum,mname,dumr,dumd)
+             go to 666
+           end if
+           currmat = currmat + 1
+         end do
+c                                                                               
+c                       not in library. check to make sure library is           
+c                       not full.                                               
+c                                                                               
+         nummat = nummat + 1
+         if( nummat.gt.mxmat ) then
+            nummat = mxmat
+            call errmsg(6,dum,dums,dumr,dumd)
+            go to 666
+         end if
+c                                                                               
+c                       find the first open slot in the material lib-           
+c                       rary vector matnam and assign it to the spec-           
+c                       ified material.                                         
+c                                                                               
       mat_assigned(currmat) = .true.
       matnam(currmat) = mname
 c
@@ -63,7 +88,7 @@ c
 c               cp material has special reading procedure
 c
       if ( mattype .eq. 10 ) then
-        call inmat_cp()
+        call inmat_cp(currmat)
         go to 666
       end if
 c
@@ -163,19 +188,19 @@ c
                   end if                                                        
             elseif ( matchs_exact('alpha')) then                                
                   if (.not. numr(matprp(6,matnum))) then                        
-                        call errmsg(5,dumi,'alpha',dumr,dumd)                   
+                        call errmsg(23,dumi,'alpha',dumr,dumd)                   
                   end if                                                        
             elseif ( matchs_exact('rho')) then                                  
                   if (.not. numr(matprp(7,matnum))) then                        
-                        call errmsg(5,dumi,'rho',dumr,dumd)                     
+                        call errmsg(23,dumi,'rho',dumr,dumd)                     
                   end if                                                        
             elseif ( matchs_exact('tolerance')) then                            
                   if (.not. numd(dmatprp(100,matnum))) then                     
-                        call errmsg(5,dumi,'tolerance',dumr,dumd)               
+                        call errmsg(23,dumi,'tolerance',dumr,dumd)               
                   end if                                                        
             elseif ( matchs_exact('n_crystals')) then                           
                   if (.not. numi(imatprp(101,matnum))) then                     
-                        call errmsg(5,dumi,'n_crystals',dumr,dumd)              
+                        call errmsg(23,dumi,'n_crystals',dumr,dumd)              
                   end if                                                        
             elseif ( matchs_exact('angle_type')) then                           
                   if (.not. label(dumi)) then                                   
@@ -209,7 +234,7 @@ c
                   end if                                                        
             elseif ( matchs_exact('crystal_type')) then                         
                   if (.not. numi(imatprp(105,matnum))) then                     
-                        call errmsg(5,dumi,'crystal_type',dumr,dumd)            
+                        call errmsg(23,dumi,'crystal_type',dumr,dumd)            
                   end if                                                        
             elseif ( matchs_exact('orientation_input')) then                    
                   if (.not. label(dumi)) then                                   

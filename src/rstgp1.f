@@ -1339,9 +1339,9 @@ c
 c              change history length if we are actually an 
 c              interface damaged material
 c
-      if( is_inter_dmg )
-     &   call mm11_set_sizes_special(inter_mat,info_vector, 
-     &                               local_element_no)
+c     if( is_inter_dmg )
+c    &   call mm11_set_sizes_special(inter_mat,info_vector, 
+c    &                               local_element_no)
 c
       if( info_type .gt. 0 .and. info_type .le. 4 ) then
          value = info_vector(info_type)
