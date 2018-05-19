@@ -2,7 +2,7 @@
 #               makefile for FFT_finite_3d program
 #
 O        = .o
-OD       = /home/rma8/ti6264/FFT/RanFFT/testAll/CPFFT/obj_linux
+OD       = ././../obj_linux
 RMC      = /bin/rm -f
 MVC      = /bin/mv -f
 #
