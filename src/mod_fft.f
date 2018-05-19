@@ -51,7 +51,8 @@ c
 c
 c     ================== Newton-Raphson loop control ==================
       real(8), save :: straininc, tolPCG, tolNR
-      integer, save :: maxIter, nstep, tstep
+      integer, save :: maxIter, nstep
+      real(8), save :: tstep
       real(8), save :: F_total(9), mults(100000) ! mxstep from param_def
       logical, save :: out_step(100000)
 c

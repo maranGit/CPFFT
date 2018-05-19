@@ -829,9 +829,9 @@ c!DIR$ VECTOR ALIGNED
 c
 c            Ran hard code temperature at gauss point
 c
-      gp_temps  = zero
+      gp_temps  = 297.0D0
       gp_dtemps = zero
-      gp_rtemps = zero
+      gp_rtemps = 297.0D0
 
 c     if( local_work%block_has_nonlocal_solids )
 c    &    local_work%nonlocal_state_blk = zero ! array
@@ -875,7 +875,6 @@ c!DIR$ VECTOR ALIGNED
         iter_0_extrapolate_off = .not. extrapolated_du
         if( step .eq. 1 ) iter_0_extrapolate_off = .true.
       end if
-      if( local_debug )  write(iout,9110) felem, gpn, span
       call mm10( gpn, local_work%span, local_work%ncrystals,
      &           hist_size_for_blk,
      &           local_work%elem_hist(1,1,gpn),
