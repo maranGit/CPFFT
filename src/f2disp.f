@@ -14,7 +14,7 @@ c     ****************************************************************
 c
 c
       subroutine f2disp(step)
-      use fft, only: Fn1, N, incmap, incid, N3
+      use fft, only: Fn1, N, incmap, incid, N3, BTB, ia_btb, ja_btb
       implicit none
       include 'common.main'
 c
@@ -25,7 +25,7 @@ c
 c                          local
 c
       integer :: ndofs, ndofs_1, nen, nen1, currElem, currNode
-      real(8), allocatable, dimension(:,:) :: AA, bb, x_current
+      real(8), allocatable, dimension(:,:) :: bb, x_current
       logical :: debug
 
       integer :: ii, kk, mm, nn, ll
@@ -45,11 +45,14 @@ c
       nen1    = 9
       ndofs   = ( N + 1 ) * ( N + 1 ) * ( N + 1 )
       ndofs_1 = ndofs - 1
-      allocate( AA(ndofs_1,ndofs_1), bb(ndofs_1,3) )
+      allocate( bb(ndofs_1,3) )
+c
+c                        form A matrix (sparse)
+c
+      if( .not. allocated(BTB) ) call form_BTB()
 c
 c                  global stiffness and force vector
 c
-      AA = zero
       bb = zero
       bf = .false.
       der = .false.
@@ -57,39 +60,39 @@ c
       do ii = 1, N3
 
 c                 8-point integration to get A matrix
-        lint = 8
-        currElem = incmap(ii)
-        do kk = 1, nen
-          ix_local(kk) = incid(currElem+kk-1)
-          currNode = ix_local(kk) * 3 - 2
-          Coordinate_local( 1, kk ) = c( currNode )
-          Coordinate_local( 2, kk ) = c( currNode + 1 )
-          Coordinate_local( 3, kk ) = c( currNode + 2 )
-        end do
+c       lint = 8
+c       currElem = incmap(ii)
+c       do kk = 1, nen
+c         ix_local(kk) = incid(currElem+kk-1)
+c         currNode = ix_local(kk) * 3 - 2
+c         Coordinate_local( 1, kk ) = c( currNode )
+c         Coordinate_local( 2, kk ) = c( currNode + 1 )
+c         Coordinate_local( 3, kk ) = c( currNode + 2 )
+c       end do
 
-        A_local = zero
-        b_local = zero
+c       A_local = zero
+c       b_local = zero
 
-        if(debug) write(out,9001)
+c       if(debug) write(out,9001)
 
-        do ll = 1, lint
+c       do ll = 1, lint
 
           ! get value of B at integration point
-          call intpntb(ll,lint,0,Wgt,ss)
-          call shlb(ss,nen,nen,der,bf,shl,shld,shls,be)
-          call shgb(Coordinate_local,nen,shld,shls,nen,nen,bf,der,
-     &              Jdet,QXY,shgs,be,xs)
+c         call intpntb(ll,lint,0,Wgt,ss)
+c         call shlb(ss,nen,nen,der,bf,shl,shld,shls,be)
+c         call shgb(Coordinate_local,nen,shld,shls,nen,nen,bf,der,
+c    &              Jdet,QXY,shgs,be,xs)
 
           ! B matrix
-          B_matrix = QXY
-          BT_matrix = transpose(QXY)
+c         B_matrix = QXY
+c         BT_matrix = transpose(QXY)
 
           ! Gauss integration to get local A matrix
-          A_local = A_local + Wgt * Jdet * matmul(BT_matrix, B_matrix)
+c         A_local = A_local + Wgt * Jdet * matmul(BT_matrix, B_matrix)
 
-        end do
+c       end do
 
-        if(debug) write(out,9002)
+c       if(debug) write(out,9002)
 c
 c                 1-point integration to get b vector
 c
@@ -131,11 +134,11 @@ c
           mm = ix_local(kk) - 1
           if( mm .eq. 0 ) cycle
           bb(mm,1:3) = bb(mm,1:3) + b_local(kk,1:3)
-          do ll = 1, nen
-            nn = ix_local(ll) - 1
-            if( nn .eq. 0 ) cycle
-            AA(mm,nn) = AA(mm,nn) + A_local(kk,ll)
-          end do
+c         do ll = 1, nen
+c           nn = ix_local(ll) - 1
+c           if( nn .eq. 0 ) cycle
+c           AA(mm,nn) = AA(mm,nn) + A_local(kk,ll)
+c         end do
         end do
         
       end do ! loop over element
@@ -144,7 +147,7 @@ c                    solve for displacement
 c
       allocate( x_current( ndofs_1, 3 ) )
       x_current = zero
-      call drive_pardiso_solver(AA(1,1),bb(1,1),ndofs_1,x_current(1,1))
+      call drive_pardiso_solver(bb(1,1),ndofs_1,x_current(1,1))
 c
 c              store nodal displacement in common.main
 c
@@ -155,12 +158,272 @@ c
         u(ii*3+3) = x_current(ii,3) - c(ii*3+3)
       end do
 
-      deallocate( AA, bb, x_current )
+      deallocate( bb, x_current )
       return
  9001 format(1x,'>>> Entering A construction',/)
  9002 format(1x,'>>> Leaving A construction',/)
  9003 format(1x,'>>> Entering b construction',/)
  9004 format(1x,'>>> Leaving b construction',/)
+      end subroutine
+c
+c     ****************************************************************
+c     *                                                              *
+c     *                  subroutine  form_BTB                        *
+c     *                                                              *
+c     *                       written by : RM                        *
+c     *                                                              *
+c     *                   last modified: 5/20/18                     *
+c     *                                                              *
+c     *    generate A matrix equals transpose(B)*B, which is used    *
+c     *    to compute nodal displacement from elemental deformat-    *
+c     *    ion gradient. B is derivative of shape function w.r.t.    *
+c     *    initial configuration, trus should be constant.           *
+c     *                                                              *
+c     ****************************************************************
+c
+      subroutine form_BTB
+      use fft, only: incmap, incid, N, BTB, ia_btb, ja_btb
+      implicit none
+      include 'common.main'
+c
+c                     local
+c
+      integer :: N1, N12, N3, ndofs
+      integer :: numNonZero, numNonZeroSymm
+c     integer, allocatable :: ia(:), ja(:)
+c     real(8), allocatable :: A(:)
+      logical :: bflags(6)
+      integer :: x1, x2, x3, currNode, counter, lint, ix_local(8)
+      integer :: ii, kk, ll, mm, nn, pp, node1, node2
+      real(8) :: Coordinate_local(3,8), A_local(8,8)
+      real(8) :: QXY(3,8), shl(8), shld(3,8), shls(6,8), shgs(6,8)
+      real(8) :: Jdet, xs(3,3), Wgt, ss(3,3), be(4)
+      logical :: bf, der
+
+      real(8) :: BT_matrix(8,3)
+      integer :: nen
+      real(8), parameter :: zero = 0.0D0
+c
+c     For regularly shaped mesh with N * N * N element, total node
+c     number is (N+1) * (N+1) * (N+1). Each node is surrounded by
+c     8 nodes plus itself, the coordinates of which are
+c
+c          x       y           z         non-exist condition
+c
+c         -1    -(N+1)   -(N+1)*(N+1)
+c          0    -(N+1)   -(N+1)*(N+1)
+c         +1    -(N+1)   -(N+1)*(N+1)
+c
+c         -1       0     -(N+1)*(N+1)
+c          0       0     -(N+1)*(N+1)
+c         +1       0     -(N+1)*(N+1)
+c
+c         -1    +(N+1)   -(N+1)*(N+1)
+c          0    +(N+1)   -(N+1)*(N+1)
+c         +1    +(N+1)   -(N+1)*(N+1)
+c
+c         -1    -(N+1)         0
+c          0    -(N+1)         0
+c         +1    -(N+1)         0
+c
+c         -1       0           0
+c          0       0           0
+c         +1       0           0         a==(N+1)
+c
+c         -1    +(N+1)         0         a==1,     b==(N+1)
+c          0    +(N+1)         0                   b==(N+1)
+c         +1    +(N+1)         0         a==(N+1), b==(N+1)
+c
+c         -1    -(N+1)   +(N+1)*(N+1)    a==1,     b==1,     c==(N+1)
+c          0    -(N+1)   +(N+1)*(N+1)              b==1,     c==(N+1)
+c         +1    -(N+1)   +(N+1)*(N+1)    a==(N+1), b==1,     c==(N+1)
+c
+c         -1       0     +(N+1)*(N+1)    a==1,               c==(N+1)
+c          0       0     +(N+1)*(N+1)                        c==(N+1)
+c         +1       0     +(N+1)*(N+1)    a==(N+1),           c==(N+1)
+c
+c         -1    +(N+1)   +(N+1)*(N+1)    a==1,     b==(N+1), c==(N+1)
+c          0    +(N+1)   +(N+1)*(N+1)              b==(N+1), c==(N+1)
+c         +1    +(N+1)   +(N+1)*(N+1)    a==(N+1), b==(N+1), c==(N+1)
+c
+c
+c
+c                hard code problem size
+c
+      nen = 8
+      N1 = N + 1
+      N12 = N1 * N1
+      N3 = N * N * N
+      noelem = N3
+c
+c                determine the size of sparse matrix
+c
+      ndofs = (N+1) * (N+1) * (N+1) - 1
+      numNonZero = (3*N+1) * (3*N+1) * (3*N+1) - 15
+      numNonZeroSymm = ( numNonZero + ndofs ) / 2
+c
+c                form ia and ja for sparse matrix
+c
+      allocate( BTB(numNonZeroSymm) )
+      allocate( ja_btb(numNonZeroSymm), ia_btb(ndofs+1) )
+      BTB = zero
+      ja_btb = 0
+      ia_btb = 0
+      bflags = .false.
+c
+c                form ia and ja
+c
+      counter = 1
+      do x3 = 1, N1
+        bflags(5) = ( x3 .ne. 1  )
+        bflags(6) = ( x3 .ne. N1 )
+        do x2 = 1, N1
+          bflags(3) = ( x2 .ne. 1  )
+          bflags(4) = ( x2 .ne. N1 )
+          do x1 = 1, N1
+            bflags(1) = ( x1 .ne. 1  )
+            bflags(2) = ( x1 .ne. N1 )
+            currNode = x1-1 + (x2-1) * N1 + (x3-1) * N1 * N1
+            if (currNode .eq. 0) cycle
+            ia_btb(currNode) = counter
+
+            ! node on diagonal
+            ja_btb(counter) = currNode
+            counter = counter + 1
+
+            ! 1 st node off diagonal
+            if ( bflags(2) ) then
+              ja_btb(counter) = currNode + 1
+              counter = counter + 1
+            end if
+
+            ! 2 nd node off diagonal
+            if ( bflags(1) .and. bflags(4) ) then
+              ja_btb(counter) = currNode + N
+              counter = counter + 1
+            end if
+
+            ! 3 rd node off diagonal
+            if ( bflags(4) ) then
+              ja_btb(counter) = currNode + N + 1
+              counter = counter + 1
+            end if
+
+            ! 4 th node off diagonal
+            if ( bflags(2) .and. bflags(4) ) then
+              ja_btb(counter) = currNode + N + 2
+              counter = counter + 1
+            end if
+
+            ! 5 th node off diagonal
+            if ( bflags(1) .and. bflags(3) .and. bflags(6) ) then
+              ja_btb(counter) = currNode + N12 - N - 2
+              counter = counter + 1
+            end if
+
+            ! 6 th node off diagonal
+            if ( bflags(3) .and. bflags(6) ) then
+              ja_btb(counter) = currNode + N12 - N - 1
+              counter = counter + 1
+            end if
+
+            ! 7 th node off diagonal
+            if ( bflags(2) .and. bflags(3) .and. bflags(6) ) then
+              ja_btb(counter) = currNode + N12 - N
+              counter = counter + 1
+            end if
+
+            ! 8 th node off diagonal
+            if ( bflags(1) .and. bflags(6) ) then
+              ja_btb(counter) = currNode + N12 - 1
+              counter = counter + 1
+            end if
+
+            ! 9 th node off diagonal
+            if ( bflags(6) ) then
+              ja_btb(counter) = currNode + N12
+              counter = counter + 1
+            end if
+
+            ! 10 th node off diagonal
+            if ( bflags(2) .and. bflags(6) ) then
+              ja_btb(counter) = currNode + N12 + 1
+              counter = counter + 1
+            end if
+
+            ! 11 th node off diagonal
+            if ( bflags(1) .and. bflags(4) .and. bflags(6) ) then
+              ja_btb(counter) = currNode + N12 + N
+              counter = counter + 1
+            end if
+
+            ! 12 th node off diagonal
+            if ( bflags(4) .and. bflags(6) ) then
+              ja_btb(counter) = currNode + N12 + N + 1
+              counter = counter + 1
+            end if
+
+            ! 13 th node off diagonal
+            if ( bflags(2) .and. bflags(4) .and. bflags(6) ) then
+              ja_btb(counter) = currNode + N12 + N + 2
+              counter = counter + 1
+            end if
+
+          end do
+        end do
+      end do
+      ia_btb(ndofs + 1) = counter
+c
+c                loop over element to calculate A_local and assembly
+c
+      do ii = 1, noelem
+
+c       8-point integration to get A matrix
+        lint = 8
+        mm = incmap(ii)
+        nn = incmap(ii+1) - 1
+        ix_local(1:nen) = incid(mm:nn)
+        do mm = 1, 8
+          nn = 3*ix_local(mm)
+          Coordinate_local(1,mm) = c(nn-2)
+          Coordinate_local(2,mm) = c(nn-1)
+          Coordinate_local(3,mm) = c(nn)
+        end do
+        A_local = zero
+
+        do ll = 1, lint
+
+c         get value of B at integration point
+          call intpntb(ll,lint,0,Wgt,ss)
+          call shlb(ss,nen,nen,der,bf,shl,shld,shls,be)
+          call shgb(Coordinate_local,nen,shld,shls,nen,nen,bf,der,
+     &              Jdet,QXY,shgs,be,xs)
+
+c         B matrix
+          BT_matrix = transpose(QXY)
+
+c         Gauss integration to get local A matrix
+          A_local = A_local + Wgt * Jdet * matmul(BT_matrix,QXY)
+        end do
+c
+c                     Assembly
+c
+        do kk = 1, 8
+          mm = ix_local(kk) - 1
+          if(mm.eq.0) cycle
+          node1 = ia_btb(mm)
+          node2 = ia_btb(mm+1) - 1
+          do ll = kk, 8
+            nn = ix_local(ll) - 1
+            if(nn.eq.0) cycle
+            do pp = node1, node2
+              if(ja_btb(pp) .eq. nn) exit
+            end do
+            BTB(pp) = BTB(pp) + A_local(kk,ll)
+          end do
+        end do
+      end do
+      return
       end subroutine
 c
 c     ****************************************************************
@@ -176,21 +439,22 @@ c     *                  three linear equations                      *
 c     *                                                              *
 c     ****************************************************************
 c
-      subroutine drive_pardiso_solver(A, b, neq, x)
+      subroutine drive_pardiso_solver(b, neq, x)
+      use fft, only: ia => ia_btb, ja => ja_btb, A_CSR => BTB
       implicit none
 c
 c                          global
 c
       integer :: neq
-      real(8) :: A(neq,*), b(neq,*), x(neq,*)
+      real(8) :: b(neq,*), x(neq,*)
 c
 c                          local
 c
       integer(8) :: pt(64) ! long int for 64 bit machine
       integer :: maxfct, mnum, mtype, phase, nrhs, iparm(64)
       integer :: msglvl, error, A_size
-      integer, allocatable, dimension(:) :: ia, ja
-      real(8), allocatable :: A_CSR(:)
+c     integer, allocatable, dimension(:) :: ia, ja
+c     real(8), allocatable :: A_CSR(:)
       integer :: idum, i, j, k
       real(8) :: ddum
       logical :: local_debug
@@ -210,50 +474,50 @@ c               use CSR format to store A matrix
       iparm(1:64) = 0 ! use default options
 
 c              number of non-zero terms in A (upper triangular)
-      if(local_debug) write(*,*) ">>> Counting non-zero terms in A"
+c     if(local_debug) write(*,*) ">>> Counting non-zero terms in A"
 
-      A_size = neq
-      do i = 1, ( neq - 1 )
-        do j = ( i + 1 ), neq
-          if( isNonZero( A(i,j) ) ) A_size = A_size + 1
-        end do
-      end do
-
-      allocate( A_CSR(A_size), ia(neq+1), ja(A_size) )
-
-      if(local_debug) write(*,*) ">>> counting finished"
+c     A_size = neq
+c     do i = 1, ( neq - 1 )
+c       do j = ( i + 1 ), neq
+c         if( isNonZero( A(i,j) ) ) A_size = A_size + 1
+c       end do
+c     end do
+c
+c     allocate( A_CSR(A_size), ia(neq+1), ja(A_size) )
+c
+c     if(local_debug) write(*,*) ">>> counting finished"
 c
 c             use CSR format to store A matrix
 c
-      if(local_debug) write(*,*) ">>> condensing A matrix"
+c     if(local_debug) write(*,*) ">>> condensing A matrix"
+c
+c     k = 1
+c
+c     do i = 1, ( neq - 1 )
+c
+c       ja(k) = i
+c       A_CSR(k) = A(i,i)
+c       ia(i) = k
+c       k = k + 1
+c
+c       do j = ( i + 1 ), neq
+c
+c         if( isNonZero( A(i,j) ) ) then
+c           ja(k) = j
+c           A_CSR(k) = A(i,j)
+c           k = k + 1
+c         end if
+c
+c       end do
+c
+c     end do
 
-      k = 1
-
-      do i = 1, ( neq - 1 )
-
-        ja(k) = i
-        A_CSR(k) = A(i,i)
-        ia(i) = k
-        k = k + 1
-
-        do j = ( i + 1 ), neq
-
-          if( isNonZero( A(i,j) ) ) then
-            ja(k) = j
-            A_CSR(k) = A(i,j)
-            k = k + 1
-          end if
-
-        end do
-
-      end do
-
-      ja(A_size) = neq
-      A_CSR(A_size) = A(neq, neq)
-      ia(neq) = A_size
-      ia(neq+1) = A_size + 1
-
-      if(local_debug) write(*,*) ">>> condensing finished"
+c     ja(A_size) = neq
+c     A_CSR(A_size) = A(neq, neq)
+c     ia(neq) = A_size
+c     ia(neq+1) = A_size + 1
+c
+c     if(local_debug) write(*,*) ">>> condensing finished"
 c
 c             pardiso solver
 c

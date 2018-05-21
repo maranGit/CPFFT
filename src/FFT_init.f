@@ -246,6 +246,7 @@ c
         deallocate( cep_blocks )
         deallocate( barF, barF_t )
         deallocate( incid, incmap )
+        if(allocated(BTB)) deallocate(BTB,ia_btb,ja_btb)
 
       case default
         write(*,*) ">>Error: invalid option. Job terminated"

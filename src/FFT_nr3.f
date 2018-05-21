@@ -25,7 +25,9 @@ c                    local
       logical :: debug
 
       debug = .false.
-      
+c 
+c                         global step increment
+c 
       do step = 1, nstep
 
         write(*,*) "Now starting step ",step

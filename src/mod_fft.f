@@ -48,6 +48,10 @@ c
       character(len=24), dimension(300,500) :: smatprp
       integer          :: cp_matls_present
 c
+c                        Arrays to convert F to u
+c
+      real(8), allocatable :: BTB(:)
+      integer, allocatable :: ia_btb(:), ja_btb(:)
 c
 c     ================== Newton-Raphson loop control ==================
       real(8), save :: straininc, tolPCG, tolNR
