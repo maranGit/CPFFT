@@ -1,0 +1,85 @@
+c
+c
+project test
+c
+number of grid 7
+c
+material mat1
+      properties bilinear e 12000.0 nu 0.3 yld_pt 100.0 tan_e 1000.0,
+      rho 7.3e-07 alpha 1.2e-06 beta 0.5
+c
+material mat2
+      properties bilinear e 24000.0 nu 0.3 yld_pt 200.0 tan_e 1000.0,
+      rho 7.3e-07 alpha 1.2e-06 beta 0.5
+c
+sizes of x_direction 100 y_direction 100 z_direction 100
+c
+elements
+1-100 material mat1
+101-105 material mat2
+106-107 material mat1
+108-112 material mat2
+113-114 material mat1
+115-119 material mat2
+120-121 material mat1
+122-126 material mat2
+127-149 material mat1
+150-154 material mat2
+155-156 material mat1
+157-161 material mat2
+162-163 material mat1
+164-168 material mat2
+169-170 material mat1
+171-175 material mat2
+176-198 material mat1
+199-203 material mat2
+204-205 material mat1
+206-210 material mat2
+211-212 material mat1
+213-217 material mat2
+218-219 material mat1
+220-224 material mat2
+225-247 material mat1
+248-252 material mat2
+253-254 material mat1
+255-259 material mat2
+260-261 material mat1
+262-266 material mat2
+267-268 material mat1
+269-273 material mat2
+274-296 material mat1
+297-301 material mat2
+302-303 material mat1
+304-308 material mat2
+309-310 material mat1
+311-315 material mat2
+316-317 material mat1
+318-322 material mat2
+323-343 material mat1
+c
+blocking automatic
+c
+strains
+  F_xx 0.3
+  F_yy -0.1
+  F_zz -0.1
+c
+loading test
+  step 1-10 constraints 0.1
+c
+output model "RM_model_flat"
+c
+output results steps 2-10 by 2
+c
+nonlinear analysis parameters
+  maximum iterations 10
+  convergence tolerance NR 1.0e-5 CG 1.0e-10
+  time step 10
+c
+c output data
+c
+compute
+c
+stop
+c
+c

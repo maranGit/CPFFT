@@ -1,0 +1,52 @@
+c
+c
+project test
+c
+number of grid 7
+c
+crystal 1
+      properties slip_type bcc48 elastic_type isotropic,
+      hardening voce,
+      e 200000 nu 0.3 harden_n 5,48
+      alter_mode on,
+      theta_0 0.01 voce_m 1.0 tau_v 5000 tau_y 205.0,
+      gamma_bar 4.0e-05
+c
+material mat1
+      properties cp  rho 0.0 angle_convention kocks,
+      n_crystals 1 angle_type degrees,
+      crystal_input single crystal_type 1,
+      orientation_input file filename 'angle_bc.in',
+      debug off tolerance 1.0E-10
+c
+sizes of x_direction 100 y_direction 100 z_direction 100
+c
+elements
+1-343 material mat1
+c
+blocking automatic
+c
+strains
+  F_xx 0.03
+  F_yy -0.01
+  F_zz -0.01
+c
+loading test
+  step 1-10 constraints 0.1
+c
+output model "RM_model_flat"
+c
+output results steps 2-10 by 2
+c
+nonlinear analysis parameters
+  maximum iterations 10
+  convergence tolerance NR 1.0e-5 CG 1.0e-10
+  time step 10.0
+c
+c output data
+c
+compute
+c
+stop
+c
+c

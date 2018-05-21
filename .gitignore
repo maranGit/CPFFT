@@ -34,7 +34,3 @@
 
 # temporary files from VIM
 *.swp
-
-# input file
-*.in
-*.text
