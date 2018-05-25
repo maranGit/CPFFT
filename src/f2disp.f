@@ -49,7 +49,9 @@ c
 c
 c                        form A matrix (sparse)
 c
+      if(debug) write(out,9001)
       if( .not. allocated(BTB) ) call form_BTB()
+      if(debug) write(out,9002)
 c
 c                  global stiffness and force vector
 c
@@ -61,17 +63,17 @@ c
 
 c                 8-point integration to get A matrix
 c       lint = 8
-c       currElem = incmap(ii)
-c       do kk = 1, nen
-c         ix_local(kk) = incid(currElem+kk-1)
-c         currNode = ix_local(kk) * 3 - 2
-c         Coordinate_local( 1, kk ) = c( currNode )
-c         Coordinate_local( 2, kk ) = c( currNode + 1 )
-c         Coordinate_local( 3, kk ) = c( currNode + 2 )
-c       end do
+        currElem = incmap(ii)
+        do kk = 1, nen
+          ix_local(kk) = incid(currElem+kk-1)
+          currNode = ix_local(kk) * 3 - 2
+          Coordinate_local( 1, kk ) = c( currNode )
+          Coordinate_local( 2, kk ) = c( currNode + 1 )
+          Coordinate_local( 3, kk ) = c( currNode + 2 )
+        end do
 
 c       A_local = zero
-c       b_local = zero
+        b_local = zero
 
 c       if(debug) write(out,9001)
 
