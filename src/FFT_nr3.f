@@ -160,7 +160,7 @@ c     initialize the solver
       ipar( 1 ) = veclen ! length
       ipar( 2 ) = 6 ! the error and warning written to screen
       ipar( 3 ) = 1 ! current stage of the RCI CG computations
-      ipar( 5 ) = veclen ! maximum iteration
+      ipar( 5 ) = 300 ! maximum iteration
       ipar( 8 ) = 1 ! performs stopping test for the maximum iterations
       ipar( 9 ) = 0 ! dcg does not provide stopping test
       ipar( 10 ) = 1 ! I provide stopping test
