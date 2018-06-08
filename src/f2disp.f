@@ -144,6 +144,20 @@ c         end do
         end do
         
       end do ! loop over element
+      
+      if(debug .and. step .eq. 30) then
+        write(out,*) ">>> Now checking A matrix: "
+        do ii = 1,ndofs_1
+          do ll = ia_btb(ii), ( ia_btb(ii+1) - 1 )
+            write(out,9005) ii, ja_btb(ll), BTB(ll)
+          end do
+        end do
+        write(out,*) ">>> Now checking b vector: "
+        do ii = 1,ndofs_1
+          write(out,9006) bb(ii,1:3)
+        end do
+      end if
+      
 c
 c                    solve for displacement
 c
@@ -166,6 +180,8 @@ c
  9002 format(1x,'>>> Leaving A construction',/)
  9003 format(1x,'>>> Entering b construction',/)
  9004 format(1x,'>>> Leaving b construction',/)
+ 9005 format(1x,i6,i6,e12.4)
+ 9006 format(1x,3e12.4)
       end subroutine
 c
 c     ****************************************************************

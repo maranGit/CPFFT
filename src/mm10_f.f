@@ -1991,7 +1991,7 @@ c
       do d = 1,3
           do z = 1,3
             do b = 1,3
-!DIR$ IVDEP
+c!DIR$ IVDEP
                 do w = 1,3
                   kk = (z-b)*(b-w)*(w-z)/2
                   nye(d,z) = nye(d,z) - dble(kk)*gradFe(d,b,w)
@@ -2040,7 +2040,7 @@ c
 c
       dint_pts = one / dble( int_points )
 c
-!DIR$ IVDEP
+c!DIR$ IVDEP
       do igp = 1, int_points
          states_vec(s:e) = states_vec(s:e) + hisblk(sh:eh,igp)
       end do

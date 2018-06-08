@@ -31,6 +31,7 @@ c
       do step = 1, nstep
 
         write(*,*) "Now starting step ",step
+        ltmstp = step
 c
 c              average strain increment
 c

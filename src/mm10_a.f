@@ -906,7 +906,7 @@ c
 c                  tau lambdas for geometric hardening
 c                  lattice curvature
 c
-!DIR$ IVDEP
+c!DIR$ IVDEP
           do i = 1, 3
             curv(i,1,1) = n%gradFeinv(i,1,1) - n%gradFeinv(i,1,1)
             curv(i,1,2) = n%gradFeinv(i,1,2) - n%gradFeinv(i,2,1)
@@ -936,7 +936,7 @@ c
 c                  large-strain lambda
 c
            tm(1) = zero; tm(2) = zero; tm(3) = zero
-!DIR$ IVDEP
+c!DIR$ IVDEP
            do i = 1, 3
                tm(i) = tm(i) + half * (
      &           - curv(i,1,2) * cn(3)

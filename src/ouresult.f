@@ -155,7 +155,7 @@ c
 c
 c                 hard code output options
 c
-      ltmstp      = step
+c     ltmstp      = step
       myid        = 0
       oubin       = .false.
       ouasc       = .false.
