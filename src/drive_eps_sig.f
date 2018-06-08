@@ -104,236 +104,24 @@ c     allocate( ddt(mxvl,nstr), uddt(mxvl,nstr),
 c    &          qnhalf(mxvl,nstr,nstr), qn1(mxvl,nstr,nstr) )
 c     allocate( P_blk_n1(mxvl,nstrs) )
 c     allocate( A_blk_n1(mxvl,nstrs*nstrs) )
-      
-      local_debug = .false.
-      ddt    = zero
-      uddt   = zero
-      qnhalf = zero
-      qn1    = zero
-      detF   = zero
-      rnh    = zero
-      fnh    = zero
-      dfn    = zero
-      fnhinv = zero
-      P_blk_n1 = zero
-      cep_blk_n1 = zero
-      fn1inv = zero
-c
-c     initialize local_work based on elblks(0,blk) and elblks(1,blk)
-c
-      ngp = fftngp
-      gpn = 1
-      geo_non_flg = .true.
-      span = elblks(0, blk)
-      felem = elblks(1, blk)
-      currmat = matList(felem)
-      mat_type = matprp(9,currmat)
-      adaptive_flag = .false.
-c
-c
-c                        initialize local work
-c
-      local_work%dt = tstep
-      local_work%blk = blk
-      local_work%span = span
-      local_work%felem = felem
-      local_work%num_int_points = ngp
-      local_work%gpn = gpn
-      local_work%step = step
-      local_work%iter = iter ! global newton iteration (>1)
-      local_work%geo_non_flg = geo_non_flg
-      local_work%is_cohes_elem = .false.
-      local_work%block_has_nonlocal_solids = .false.
-      local_work%mat_type = mat_type
-      local_work%matnum = currmat
-      local_work%segmental = .false.
-      local_work%number_points = 0
-      local_work%curve_set_number = 0
-      local_work%fgm_enode_props = .false.
-      local_work%killed_status_vec = .false.
-      local_work%iout = out
-      local_work%int_order = 1
-      local_work%num_enodes = 8
-      local_work%num_enode_dof = 3
-      local_work%lnelas_vec = .false.
-      local_work%bbar_flg = .true.
-      local_work%material_cut_step = .false.
-      local_work%adaptive_flag = adaptive_flag
-      local_work%eps_bbar = zero
-      local_work%is_solid_matl = .true.
-      local_work%is_umat = .false.
-      local_work%umat_stress_type = 1
-      local_work%is_crys_pls = (mat_type .eq. 10)
-      local_work%temperatures = 297.0D0
-      local_work%temperatures_ref = 297.0D0
-c
-c     allocate memory for local_work according to material model
-c
-c     call mm01_set_sizes( info_vector )
-c     hist_size = info_vector(1)
-c     cep_size = info_vector(2)
-c     block_size = span * ngp * cep_size
-c     local_work%hist_size_for_blk = hist_size
-      call recstr_allocate( local_work )
-      local_work%elem_type = 2 ! lsdisop element
-c
-c     grab material parameters, state variables and history
-c     due(nodal displacement from n to n+1)
-c     ue(nodal displacement from 0 to n)
-c     ce_0, cd_n, cd_mid, cd_n1: nodal coordinate
-c                 ***hard coded for now***
-c
-c                hard code material parameters
-c     call mm01_hardCoded
-      call rknstr_set_up_materials
-c
-c                grab global variables to local_work
-c
-      call dupstr_blocked( blk, span, felem, ngp, mat_type, 
-     & geo_non_flg, step, iter, local_work )
-c
-c                grab global Fn and Fn1 to local_work
-c
-      do ii = 1, span
-        currElem = felem + ii - 1
-        local_work%fn(ii,1,1)= Fn(currElem,1)
-        local_work%fn(ii,1,2)= Fn(currElem,2)
-        local_work%fn(ii,1,3)= Fn(currElem,3)
-        local_work%fn(ii,2,1)= Fn(currElem,4)
-        local_work%fn(ii,2,2)= Fn(currElem,5)
-        local_work%fn(ii,2,3)= Fn(currElem,6)
-        local_work%fn(ii,3,1)= Fn(currElem,7)
-        local_work%fn(ii,3,2)= Fn(currElem,8)
-        local_work%fn(ii,3,3)= Fn(currElem,9)
-      end do
-      do ii = 1, span
-        currElem = felem + ii - 1
-        local_work%fn1(ii,1,1)= Fn1(currElem,1)
-        local_work%fn1(ii,1,2)= Fn1(currElem,2)
-        local_work%fn1(ii,1,3)= Fn1(currElem,3)
-        local_work%fn1(ii,2,1)= Fn1(currElem,4)
-        local_work%fn1(ii,2,2)= Fn1(currElem,5)
-        local_work%fn1(ii,2,3)= Fn1(currElem,6)
-        local_work%fn1(ii,3,1)= Fn1(currElem,7)
-        local_work%fn1(ii,3,2)= Fn1(currElem,8)
-        local_work%fn1(ii,3,3)= Fn1(currElem,9)
-      end do
-      do ii = 1, span
-        fnh(ii,1,1) = half * ( local_work%fn(ii,1,1) 
-     &              + local_work%fn1(ii,1,1) )
-        fnh(ii,1,2) = half * ( local_work%fn(ii,1,2) 
-     &              + local_work%fn1(ii,1,2) )
-        fnh(ii,1,3) = half * ( local_work%fn(ii,1,3) 
-     &              + local_work%fn1(ii,1,3) )
-        fnh(ii,2,1) = half * ( local_work%fn(ii,2,1) 
-     &              + local_work%fn1(ii,2,1) )
-        fnh(ii,2,2) = half * ( local_work%fn(ii,2,2) 
-     &              + local_work%fn1(ii,2,2) )
-        fnh(ii,2,3) = half * ( local_work%fn(ii,2,3) 
-     &              + local_work%fn1(ii,2,3) )
-        fnh(ii,3,1) = half * ( local_work%fn(ii,3,1) 
-     &              + local_work%fn1(ii,3,1) )
-        fnh(ii,3,2) = half * ( local_work%fn(ii,3,2) 
-     &              + local_work%fn1(ii,3,2) )
-        fnh(ii,3,3) = half * ( local_work%fn(ii,3,3) 
-     &              + local_work%fn1(ii,3,3) )
-      enddo
-      dfn = local_work%fn1 - local_work%fn
-c
-c              compute rotation tensor
-c
-      call rtcmp1( span, fnh, rnh )
-      call rtcmp1( span, local_work%fn1,
-     &             local_work%rot_blk_n1(1,1,gpn) )
-c
-c              compute ddt( detF is a dummy argument )
-c
-      call inv33( span, felem, fnh, fnhinv, detF )
-      call mul33( span, felem, dfn, fnhinv, ddt, out )
-c
-c              compute uddt
-c
-      call getrm1( span, qnhalf, rnh, 1 ) ! form qnhalf
-      call qmply1( span, mxvl, nstr, qnhalf, ddt, uddt )
-      call rstgp1_update_strains( span, mxvl, nstr, uddt,
-     &                            local_work%ddtse(1,1,gpn) )
-c
-c     recover stress and stiffness
-c
-      call rstgp1( local_work, uddt )
-c
-c           For CP model, calculate the gradient of the elastic
-c           rotations at the element level by linear curve fit.
-c
-c           For linear models this will just be based on the plastic rotations
-c           which may or may not be a realistic assumption
-c
-      if( local_work%mat_type .eq. 10 ) call rknstr_finish_cp
-c
-c     scatter local variables to global
-c
-      call rplstr( span, felem, ngp, mat_type, iter,
-     &             geo_non_flg, local_work, blk )
-
-c     compute cs_blk_n1(Cauchy stress) from urcs_blk_n1
-c
-      call getrm1( span, qtn1, local_work%rot_blk_n1(1,1,gpn), 2 )
-      call qmply1( span, mxvl, nstr, qtn1,
-     &             local_work%urcs_blk_n1(1,1,gpn),
-     &             cs_blk_n1 )
-c
-c     pull back cs_blk_n1(Cauchy stress) to 1st PK stress
-c     P = J*sigma*F^{-T}
-      call inv33( span, felem, local_work%fn1, fn1inv, detF )
-      call cs2p( span, felem, cs_blk_n1, fn1inv, detF, P_blk_n1 )
-      if(local_debug .and. blk .eq. 1) then
-        write(*,*) "current iteration: ", iter
-      end if
-c
-c         rotate from ( d_urcs / d_uddt ) to ( Green-Naghdi / D )
-c     (1) extract stiffness from mod_eleblocks
-c     (2) push forward to current configuration
-c     (3) store in cep_blk_n1(mxvl,nstr,nstr)
-c
-      if( geo_non_flg .and. local_work%is_solid_matl ) then
-        include_qbar = .false.
-        if(local_debug) write(*,*) "Entering gptns1()"
-        call gptns1( local_work, cep_blk_n1, qtn1 )
-        if(local_debug) write(*,*) "Leaving gptns1()"
-      end if
-c
-c     pull back cep_blocks to dP/dF
-c     assume that Green-Naghdi rate is close to Lie derivative
-c     see Simo & Hughes, chapter 7
-c     input:  cep_blk_n1(mxvl,nstr,nstr)
-c     output: A_blk_n1(mxvl,nstrs*nstrs)
-      call cep2A( span, cs_blk_n1, cep_blk_n1, 
-     &            fn1inv, detF, A_blk_n1, out)
-      if(local_debug .and. blk .eq. 2) then
-        write(*,*) " Now checking P of 2nd block:"
-        write(*,'(9D12.4)') P_blk_n1(1,:)
-      endif
-c
-c     update global P and tangent stiffness
-      do ii = 1, span
-        currElem = felem + ii - 1
-        Pn1(currElem, 1:9) = P_blk_n1(ii, 1:9)
-        K4(currElem, 1:81) = A_blk_n1(ii, 1:81)
-      end do
 c
 c     get cut-step flag and update plastic work
 c
-c     do ii = 1, span
-c       currElem = felem + ii - 1
-c       call constitutive(Fn1(currElem,:), matList(currElem), 
-c    &                     Pn1(currElem,:), K4(currElem,:))
-c     enddo
+      span = elblks(0, blk)
+      felem = elblks(1, blk)
+      
+      do ii = 1, span
+        currElem = felem + ii - 1
+        currmat = matList(currElem) - 1
+        call constitutive(Fn1(currElem,:), currmat, currElem,
+     &                     Pn1(currElem,:), K4(currElem,:))
+      enddo
 c
 c 100 deallocate( rnh, fnh, dfn, fnhinv, fn1inv )
 c     deallocate( ddt, uddt, qnhalf, qn1 )
 c     deallocate( P_blk_n1 )
 c     deallocate( A_blk_n1 )
-      call recstr_deallocate( local_work )
+c     call recstr_deallocate( local_work )
       return
       contains
 c     ========

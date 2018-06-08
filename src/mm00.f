@@ -10,8 +10,9 @@ c     *         original material subroutine of FFT program          *
 c     *                                                              *
 c     ****************************************************************
 c
-      subroutine constitutive(F, phase, P, K4)
+      subroutine constitutive(F, phase, currElem, P, K4)
       implicit none
+      integer :: currElem
       real(8) :: F(9), P(9), K4(81)
 c     internal variables
       integer :: trans(9)
@@ -21,6 +22,11 @@ c     internal variables
       real(8), parameter :: zero = 0.0D0, one = 1.0D0, half = 0.5D0
       real(8), parameter :: two = 2.0D0, three = 3.0D0
       integer :: phase
+      logical :: debug
+      
+      debug = .false.
+      
+      if(debug) write(*,*) "Entering constitutive..", currElem
 
 c     frequently used identity tensor
       trans = [ 1, 4, 7, 2, 5, 8, 3, 6, 9 ]
@@ -57,6 +63,9 @@ c     loop over gauss point to update stress and consistent stiffness
       call ddot44( tmp1, I4rt, tmp2 )
       call dot24( S, I4, tmp1 )
       K4 = tmp1 + tmp2
+      
+      if(debug) write(*,*) "Leaving constitutive..", currElem
+      
       return
       end subroutine ! consititutive
 c
