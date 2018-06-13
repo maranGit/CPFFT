@@ -76,7 +76,8 @@ c
 
 c                       try using stack
       real(8) :: cep_blk_n1(mxvl,nstr,nstr), P_blk_n1(mxvl,nstrs)
-      real(8) :: detF(mxvl),fn1inv(mxvl,ndim,ndim),rnh(mxvl,ndim,ndim)
+      real(8) :: fn1inv(mxvl,ndim,ndim),rnh(mxvl,ndim,ndim)
+      real(8) :: detF(mxvl), detFh(mxvl)
       real(8) :: fnh(mxvl,ndim,ndim),dfn(mxvl,ndim,ndim)
       real(8) :: fnhinv(mxvl,ndim,ndim),ddt(mxvl,nstr)
       real(8) :: uddt(mxvl,nstr),qnhalf(mxvl,nstr,nstr)
@@ -246,9 +247,9 @@ c
       call rtcmp1( span, local_work%fn1,
      &             local_work%rot_blk_n1(1,1,gpn) )
 c
-c              compute ddt( detF is a dummy argument )
+c              compute ddt
 c
-      call inv33( span, felem, fnh, fnhinv, detF )
+      call inv33( span, felem, fnh, fnhinv, detFh )
       call mul33( span, felem, dfn, fnhinv, ddt, out )
 c
 c              compute uddt
@@ -284,6 +285,7 @@ c
 c
 c     pull back cs_blk_n1(Cauchy stress) to 1st PK stress
 c     P = J*sigma*F^{-T}
+c
       call inv33( span, felem, local_work%fn1, fn1inv, detF )
       call cs2p( span, felem, cs_blk_n1, fn1inv, detF, P_blk_n1 )
       if(local_debug .and. blk .eq. 1) then
@@ -294,27 +296,22 @@ c         rotate from ( d_urcs / d_uddt ) to ( Green-Naghdi / D )
 c     (1) extract stiffness from mod_eleblocks
 c     (2) push forward to current configuration
 c     (3) store in cep_blk_n1(mxvl,nstr,nstr)
+c     update: do not need to (2) push forward now. Because I can get
+c             dP/dF from dt/dd directly. Now the dP/dF is exactly the
+c             same compared with finite difference method.
 c
       if( geo_non_flg .and. local_work%is_solid_matl ) then
         include_qbar = .false.
-        if(local_debug) write(*,*) "Entering gptns1()"
         call gptns1( local_work, cep_blk_n1, qtn1 )
-        if(local_debug) write(*,*) "Leaving gptns1()"
       end if
 c
-c     pull back cep_blocks to dP/dF
-c     assume that Green-Naghdi rate is close to Lie derivative
-c     see Simo & Hughes, chapter 7
-c     input:  cep_blk_n1(mxvl,nstr,nstr)
-c     output: A_blk_n1(mxvl,nstrs*nstrs)
-      call cep2A( span, cs_blk_n1, cep_blk_n1, 
-     &            fn1inv, detF, A_blk_n1, out)
-      if(local_debug .and. blk .eq. 2) then
-        write(*,*) " Now checking P of 2nd block:"
-        write(*,'(9D12.4)') P_blk_n1(1,:)
-      endif
+c                 pull back cep_blk_n1 to dP/dF
+c
+      call cep2A( local_work, cep_blk_n1, rnh, detF, 
+     &            detFh, fnhinv, fn1inv, A_blk_n1 )
 c
 c     update global P and tangent stiffness
+c
       do ii = 1, span
         currElem = felem + ii - 1
         Pn1(currElem, 1:9) = P_blk_n1(ii, 1:9)

@@ -92,14 +92,14 @@ c     case ( 8 )
 c       call drive_umat_cnst( gpn, local_iout, local_work )                     
       case (10 )
         call drive_10_cnst( gpn, local_iout, local_work, cep )                       
-      case default                                                              
-          write(local_iout,9500)                                                
-          call die_abort                                                        
+      case default
+          write(local_iout,9500)
+          call die_abort
       end select
 c
-      call ctran1( span, cep, qn1, local_work%is_umat, 
-     &             local_work%umat_stress_type,
-     &             local_work%is_crys_pls, local_debug )
+c     call ctran1( span, cep, qn1, local_work%is_umat, 
+c    &             local_work%umat_stress_type,
+c    &             local_work%is_crys_pls, local_debug )
 c
       return
  9500 format(1x,'>> Fatal Error: gptns1. invalid material type..',              
