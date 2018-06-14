@@ -189,14 +189,14 @@ c
         case (2) ! task 2: perform the stopping tests
           res = tmpPcg(:, 3)
           resnorm = dnrm2( veclen, res, 1 )
-          if (resnorm .gt. tolb) then
+          if (resnorm.gt.tolb .and. resnorm.gt.tol) then
             passflg = .false.
           else
             call G_K_dF(x, res, .true.)
             ! call DAXPY(veclen, -1.D0, b, 1, res)
             res = b - res
             resnorm = dnrm2( veclen, res, 1 )
-            passflg = ( resnorm .le. tolb )
+            passflg = ( resnorm.le.tolb .or. resnorm.le.tol )
           endif
 c
           if ( .not. passflg ) then
