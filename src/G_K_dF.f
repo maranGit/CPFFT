@@ -28,7 +28,7 @@ c     multiply by K4
       if (flgK) then
         call trans2(tmpReal, N3)
         call ddot42n(K4, tmpReal, N3)
-        call trans2(tmpReal, N3)
+c       call trans2(tmpReal, N3)
       endif
 
 c     fft
