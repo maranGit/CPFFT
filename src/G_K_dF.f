@@ -24,11 +24,13 @@ c               local
       local_debug = .false.
 
 c     multiply by K4
-      tmpReal = F
+c     tmpReal = F
       if (flgK) then
-        call trans2(tmpReal, N3)
-        call ddot42n(K4, tmpReal, N3)
 c       call trans2(tmpReal, N3)
+        call ddot42n(K4(1,1), F(1,1), tmpReal(1,1), N3)
+c       call trans2(tmpReal, N3)
+      else
+        tmpReal(1:N3,1:ndim2) = F(1:N3,1:ndim2)
       endif
 
 c     fft
@@ -46,11 +48,11 @@ c     multiply by G_hat matrix
 
 c     inverse fft
       do ii = 1, ndim2
-        call ifftfem3d(tmpCplx(:,ii), tmpReal(:,ii))
+        call ifftfem3d(tmpCplx(1,ii), GKF(1,ii))
       enddo
 
 c     return
-      GKF = tmpReal
+c     GKF = tmpReal
 
       return
       end subroutine
@@ -234,59 +236,122 @@ c     *                       should be inlined                      *
 c     *                                                              *
 c     ****************************************************************
 c
-      subroutine trans2(A2, n)
+      subroutine ddot42n(A4, B2, C2, n)
+c
+c                  A4_ijkl * B2_kl = C2_ij, n rows
+c
       implicit none
-c     B2_ji = A2_ij, n rows
-      integer, intent(in) :: n
-      real(8) :: A2( n, 9 )
-      A2 = A2( :, [ 1, 4, 7, 2, 5, 8, 3, 6, 9 ] )
+c
+c                    global
+c
+      integer, intent(in)  :: n
+      real(8), intent(in)  :: A4(n,*), B2(n,*)
+      real(8), intent(out) :: C2(n,*)
+c
+c                    local
+c
+      integer :: i, j, k, l
+      real(8), parameter :: zero = 0.0D0
+c
+      C2(1:n,1:9) = zero
+
+      do j = 1, 9
+        l = ( j - 1 ) * 9
+
+        do k = 1, 9
+
+          do i = 1, n
+
+            C2(i,j) = C2(i,j) + A4(i,l+k) * B2(i,k)
+
+          end do
+
+        end do
+
+      end do
+
       return
       end subroutine
 c
-      subroutine ddot42n(A4, B2, n)
-      implicit none
+c     subroutine trans2(A2, n)
+c     implicit none
+c     B2_ji = A2_ij, n rows
+c     integer, intent(in) :: n
+c     real(8) :: A2( n, 9 )
+c     A2 = A2( :, [ 1, 4, 7, 2, 5, 8, 3, 6, 9 ] )
+c     return
+c     end subroutine
+c
+c     subroutine ddot42n(A4, B2, n)
+c     implicit none
 c                  A4_ijkl * B2_lk = C2_ij, n rows
-      integer, intent(in) :: n
-      real(8), intent(in) :: A4( n, 81 )
-      real(8) :: B2( n, 9 ), C2( n, 9 )
-      integer :: ii, jj, p
-      integer :: D2( 9 )
-
-      C2 = 0.0D0
-      D2 = [ 1, 4, 7, 2, 5, 8, 3, 6, 9 ]
-      do ii = 1, 9
-        do jj = 1, 9
-          p = D2(jj) + (ii - 1) * 9
-          C2(:, ii) = C2(:, ii) + A4(:, p) * B2(:, jj)
-        enddo
-      enddo
-
-      B2 = C2
-
-      return
-      end subroutine
+c     integer, intent(in) :: n
+c     real(8), intent(in) :: A4( n, 81 )
+c     real(8) :: B2( n, 9 ), C2( n, 9 )
+c     integer :: ii, jj, p
+c     integer :: D2( 9 )
+c
+c     C2 = 0.0D0
+c     D2 = [ 1, 4, 7, 2, 5, 8, 3, 6, 9 ]
+c     do ii = 1, 9
+c       do jj = 1, 9
+c         p = D2(jj) + (ii - 1) * 9
+c         C2(:, ii) = C2(:, ii) + A4(:, p) * B2(:, jj)
+c       enddo
+c     enddo
+c
+c     B2 = C2
+c
+c     return
+c     end subroutine
 c
       subroutine ddot42n_cmplx(A4, B2, n)
-c                 A4_ijkl * B2_lk = C2_ij, n rows
+c                 A4_ijkl * B2_kl = C2_ij, n rows
 c                 A4 is real, B2 is complex, C2 is complex
       implicit none
-      
-      integer, intent(in) :: n
-      real(8), intent(in) :: A4( n, 81 )
-      complex(8) :: B2( n, 9 ), C2( n, 9 )
-      integer :: ii, jj, p
-      integer :: D2( 9 )
+c
+c                    global
+c
+      integer, intent(in)     :: n
+      real(8), intent(in)     :: A4( n, * )
+      complex(8)              :: B2( n, * )
+c
+c                    local
+c
+      complex(8), allocatable :: C2( :, : )
+      integer                 :: i, j, k, l
+      real(8), parameter      :: zero = 0.0D0
 
-      C2 = (0.0D0, 0.0D0)
-      D2 = [ 1, 4, 7, 2, 5, 8, 3, 6, 9 ]
-      do ii = 1, 9
-        do jj = 1, 9
-          p = D2(jj) + (ii - 1) * 9
-          C2(:, ii) = C2(:, ii) + dcmplx(A4(:, p),0.0D0) * B2(:, jj)
-        enddo
-      enddo
+      allocate( C2( n, 9 ) )
+      C2 = (zero, zero)
+c     D2 = [ 1, 4, 7, 2, 5, 8, 3, 6, 9 ]
+c     do ii = 1, 9
+c       do jj = 1, 9
+c         p = D2(jj) + (ii - 1) * 9
+c         C2(:, ii) = C2(:, ii) + dcmplx(A4(:, p),0.0D0) * B2(:, jj)
+c       enddo
+c     enddo
 
-      B2 = C2
+      do j = 1, 9
+        l = ( j - 1 ) * 9
+
+        do k = 1, 9
+
+          do i = 1, n
+
+            C2(i,j) = C2(i,j) + dcmplx(A4(i,l+k),0.0D0) * B2(i,k)
+
+          end do
+
+        end do
+
+      end do
+
+      do i = 1, 9
+        B2(1:n,i) = C2(1:n,i)
+      end do
+
+      deallocate( C2 )
 
       return
       end subroutine
