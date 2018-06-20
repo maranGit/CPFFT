@@ -272,9 +272,34 @@ c
       implicit none
 
 c     internal variables
-      integer :: ii, jj, kk, tmp, Gnon0(27)
+      integer :: ii, jj, kk, ll, tmp
       real(8), dimension(:,:), allocatable :: q
       real(8), dimension(:), allocatable :: q_dot_q
+      integer :: indices(4,81)
+
+c                         indices array
+      indices = 0
+      indices(1,1:27) = 1
+      indices(1,28:54) = 2
+      indices(1,55:81) = 3
+c
+      indices(2,1:9) = 1
+      indices(2,10:18) = 2
+      indices(2,19:27) = 3
+      indices(2,28:54) = indices(2,1:27)
+      indices(2,55:81) = indices(2,1:27)
+c
+      indices(3,1:81) = 1
+      indices(3,4:81:9) = 2
+      indices(3,5:81:9) = 2
+      indices(3,6:81:9) = 2
+      indices(3,7:81:9) = 3
+      indices(3,8:81:9) = 3
+      indices(3,9:81:9) = 3
+c
+      indices(4,1:81:3) = 1
+      indices(4,2:81:3) = 2
+      indices(4,3:81:3) = 3
 
 c     allocate internal variables
       allocate ( q(N3, ndim1) )
@@ -291,26 +316,28 @@ c     allocate internal variables
       enddo
       q_dot_q = q(:,1)*q(:,1) + q(:,2)*q(:,2) + q(:,3)*q(:,3)
 
-      do ii = 1, 27
-        Gnon0(ii) = ii * 3 - 2
-      enddo
-      Gnon0( 10:18 ) = Gnon0( 10:18 ) + 1
-      Gnon0( 19:27 ) = Gnon0( 19:27 ) + 2
-      do kk = 1, 3
-        do ii = 1, 3
-          do jj = 1, 3
-            tmp = (kk - 1) * 9 + (ii - 1) * 3 + jj
-            Ghat4(:,Gnon0(tmp)) = q(:,ii) * q(:,jj)
-          enddo
-        enddo
-      enddo
+      do tmp = 1, 81
+        ii = indices(1,tmp)
+        jj = indices(2,tmp)
+        kk = indices(3,tmp)
+        ll = indices(4,tmp)
+        if (ii .eq. kk) Ghat4(:,tmp) = q(:,jj) * q(:,ll)
+      end do
+
       do ii = 1, N3
-        if ( abs( q_dot_q(ii) ) .le. 1D-6 ) then
+        if ( abs( q_dot_q(ii) ) .le. 1D-10 ) then
           Ghat4(ii, :) = 0.0D0
         else
           Ghat4(ii, :) = Ghat4(ii, :) / q_dot_q(ii)
         endif
       enddo
+
+      open(unit=20,file='Ghat4')
+      do ii = 1, N3
+        write(20,999) Ghat4(ii,1:81)
+      end do
+  999 format(1x,81f6.2)
+      close(20)
 
 c     deallocate internal variables
       deallocate( q, q_dot_q )
