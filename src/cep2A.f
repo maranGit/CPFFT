@@ -212,11 +212,6 @@ c                         dR(i,j) / dF(k,l)
         dRhdF(m) = detYh_1 * (RYRh(i,k)*Yh(l,j) - RYh(i,l)*RYh(k,j))
       end do
       dRhdF = dRhdF * half
-      write(20,*) "detY_1: ",detY_1
-      write(20,*) "detYh_1: ",detYh_1
-      do i = 1, 81
-        write(20,*) dRdF(i)
-      end do
 
 c                         dL(i,j) / dF(k,l)
       dLdF = zero
