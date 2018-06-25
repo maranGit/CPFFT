@@ -21,6 +21,7 @@ c
 c                    local
       real(8), parameter :: zero = 0.0D0, one = 1.0D0
       real(8) :: Fnorm, resfft
+      real(8) :: C_homo(81)
       integer :: step, iiter, ii
       logical :: debug
 
@@ -78,6 +79,10 @@ c
         Fn = Fn1
         barF_t = barF
         Pn = Pn1
+c
+c            compute homogenized tangent stiffness
+c
+        call tangent_homo( C_homo )
 c
 c            update global variables in eleblocks
 c
