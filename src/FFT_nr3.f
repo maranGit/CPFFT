@@ -21,6 +21,7 @@ c
 c                    local
       real(8), parameter :: zero = 0.0D0, one = 1.0D0
       real(8) :: Fnorm, resfft
+      real(8) :: C_homo(81)
       integer :: step, iiter, ii
       logical :: debug
 
@@ -78,6 +79,10 @@ c
         Fn = Fn1
         barF_t = barF
         Pn = Pn1
+c
+c            update state variables
+c
+        call tangent_homo( C_homo )
 c
 c            update global variables in eleblocks
 c
@@ -189,14 +194,14 @@ c
         case (2) ! task 2: perform the stopping tests
           res = tmpPcg(:, 3)
           resnorm = dnrm2( veclen, res, 1 )
-          if (resnorm .gt. tolb) then
+          if (resnorm .gt. tolb .and. resnorm .gt. tol) then
             passflg = .false.
           else
             call G_K_dF(x, res, .true.)
             ! call DAXPY(veclen, -1.D0, b, 1, res)
             res = b - res
             resnorm = dnrm2( veclen, res, 1 )
-            passflg = ( resnorm .le. tolb )
+            passflg = ( resnorm .le. tolb .or. resnorm .le. tol )
           endif
 c
           if ( .not. passflg ) then
