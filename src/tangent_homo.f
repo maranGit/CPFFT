@@ -19,9 +19,11 @@ c
 c
 c                local
 c
-      integer :: i, j
-      real(8), parameter :: zero = 0.0D0, one = 1.0D0, mone = -1.0D0
+      integer              :: i, j, k, numval
+      real(8), parameter   :: zero = 0.0D0, one = 1.0D0, mone = -1.0D0
+      real(8)              :: N3_double
       real(8), allocatable :: C_ij(:,:)
+      real(8), external    :: ddot
 c
 c     Idea from this paper:
 c       Gokuzum, Felix Selim, and Marc‐Andre Keip. "An algorithmically 
@@ -34,20 +36,16 @@ c     where delta_F is the F perturbation and F_bar is the mean
 c     deformation gradient. Then d(P) / d(F_bar) and d(P_bar) / d(F_bar)
 c     is right at hand.
 c
+      numval = N3 * nstrs
+      N3_double = dble(N3)
       allocate( C_ij(N3, nstrs) )
       do i = 1, nstrs
 c
 c                form b = Ghat4 : K4
 c
-        call dcopy(N3, K4(1, i     ), 1, C_ij(1, 1), 1)
-        call dcopy(N3, K4(1, i +  9), 1, C_ij(1, 2), 1)
-        call dcopy(N3, K4(1, i + 18), 1, C_ij(1, 3), 1)
-        call dcopy(N3, K4(1, i + 27), 1, C_ij(1, 4), 1)
-        call dcopy(N3, K4(1, i + 36), 1, C_ij(1, 5), 1)
-        call dcopy(N3, K4(1, i + 45), 1, C_ij(1, 6), 1)
-        call dcopy(N3, K4(1, i + 54), 1, C_ij(1, 7), 1)
-        call dcopy(N3, K4(1, i + 63), 1, C_ij(1, 8), 1)
-        call dcopy(N3, K4(1, i + 72), 1, C_ij(1, 9), 1)
+        do j = 1, nstrs
+          call dcopy(N3, K4(1, 9*j+i-9), 1, C_ij(1, j), 1)
+        end do
         call G_K_dF(C_ij(1,1), b(1,1), .false.)
         call dscal(N3*nstrs, mone, b(1,1), 1)
 
@@ -62,29 +60,14 @@ c     d(F)/d(F_bar) = delta(i,k) * delta(j,l) + d(delta_F) / d(F_bar)
 c        C_homo = mean{ [ d(P)/d(F) ] : [ d(F)/d(F_bar) ] }
 
         do j = 1, nstrs
-          call tangent_average(C_ij(1,j), C_homo(9*j+i-9), N3)
+          k = 9*j+i-9
+          C_homo(k) = ddot(numval, K4(1,j*9-8), 1, C_ij(1,1), 1)
+          C_homo(k) = C_homo(k) / N3_double
         end do
 
       end do
 c
       deallocate( C_ij )
 c
-      return
-      end subroutine
-
-      subroutine tangent_average(a, b, n)
-      implicit none
-      real(8), intent(in)  :: a(*)
-      integer, intent(in)  :: n
-      real(8), intent(out) :: b
-      integer              :: i
-      real(8), parameter   :: zero = 0.0D0
-
-      b = zero
-      do i = 1, n
-        b = b + a(i)
-      enddo
-      b = b / dble(n)
-
       return
       end subroutine
