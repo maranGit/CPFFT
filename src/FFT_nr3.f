@@ -14,16 +14,17 @@ c
       subroutine FFT_nr3()
       use fft, only: barF, DbarF, barF_t, b, Fn1, Fn, Pn1, Pn, dFm, 
      &                straininc, tolPCG, tolNR, maxIter, nstep,
-     &                mults, F_total, out_step
+     &                mults, F_total, out_step, N3
       implicit none
       include 'common.main'
 
 c                    local
-      real(8), parameter :: zero = 0.0D0, one = 1.0D0
+      real(8), parameter :: zero = 0.0D0, one = 1.0D0, mone = -1.0D0
       real(8) :: Fnorm, resfft
       real(8) :: C_homo(81)
       integer :: step, iiter, ii
       logical :: debug
+      real(8), external :: dnrm2
 
       debug = .false.
 c 
@@ -47,23 +48,24 @@ c                      average strain
 c     initial residual: distribute "barF" over grid using K4
         b = zero
         call G_K_dF(DbarF, b, .true.)
-        b = -b
+        call dscal(N3*nstrs, mone, b(1,1), 1)
 
         Fn1 = Fn1 + DbarF
-        Fnorm = sqrt(sum(Fn1*Fn1))
+        Fnorm = dnrm2(N3*nstrs, Fn1(1,1), 1)
         resfft = Fnorm
         iiter = 0
 
 c     iterate as long as iterative update does not vanish
         do while ( .true. )
           call fftPcg(b, dFm, tolPCG, out) ! results stored in dFm in mod_fft
-          Fn1 = Fn1 + dFm
+c
+          call daxpy(N3*nstrs, one, dFm(1,1), 1, Fn1(1,1), 1)
           
           call drive_eps_sig( step, iiter )
           
           call G_K_dF(Pn1, b, .false.)
-          b = -b
-          resfft = sqrt(sum(dFm*dFm))
+          call dscal(N3*nstrs, mone, b(1,1), 1)
+          resfft = dnrm2(N3*nstrs, dFm(1,1), 1)
           write(*,*) resfft/Fnorm
           if ((resfft/Fnorm < tolNR) .and. (iiter > 0)) exit
           if ( iiter .eq. maxIter ) then
@@ -76,9 +78,9 @@ c     iterate as long as iterative update does not vanish
 c
 c            update state variables
 c
-        Fn = Fn1
-        barF_t = barF
-        Pn = Pn1
+        call dcopy(N3*nstrs, Fn1(1,1), 1, Fn(1, 1), 1)
+        call dcopy(N3*nstrs, barF(1,1), 1, barF_t(1, 1), 1)
+        call dcopy(N3*nstrs, Pn1(1,1), 1, Pn(1, 1), 1)
 c
 c            compute homogenized tangent stiffness
 c
