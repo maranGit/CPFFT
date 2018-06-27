@@ -151,17 +151,15 @@ c
 c     initialize deformation gradient
       Fn = zero
       Fn(:,[1,5,9]) = one
-      Fn1 = Fn
+      call dcopy(N3*nstrs, Fn(1,1), 1, Fn1(1,1), 1)
       Pn = zero
       Pn1 = zero
-      barF = zero
-      barF(:,1) = one
-      barF(:,5) = one
-      barF(:,9) = one
-      barF_t = zero
-      barF_t(:,1) = one
-      barF_t(:,5) = one
-      barF_t(:,9) = one
+c
+c     initialize BC
+c
+      isNBC(1:9) = .false.
+      FP_max = zero
+      BC_all = zero
 c
 c     form G_hat_4 matrix and store in Ghat4
 c
@@ -204,11 +202,8 @@ c
         allocate ( Fn1(N3, ndim2), stat=iok )
         allocate ( Pn(N3, ndim2) )
         allocate ( Pn1(N3, ndim2) )
-        allocate ( DbarF(N3, ndim2) )
         allocate ( b(N3, ndim2) )
         allocate ( dFm(N3, ndim2) )
-        allocate ( barF(N3, ndim2) )
-        allocate ( barF_t(N3, ndim2) )
         allocate ( matList(N3) )
   
 c     allocate FFT related variables
@@ -235,7 +230,7 @@ c
 c     deallocate variables in module
 c
         deallocate( Ghat4, K4, Fn, Fn1 )
-        deallocate( Pn, Pn1, DbarF, b, dFm, matList )
+        deallocate( Pn, Pn1, b, dFm, matList )
         deallocate( real1, cplx3half, cplx1half )
         deallocate( tmpPcg )
         deallocate( tmpReal, tmpCplx )
@@ -244,7 +239,6 @@ c
           deallocate( cep_blocks(blk)%vector )
         end do
         deallocate( cep_blocks )
-        deallocate( barF, barF_t )
         deallocate( incid, incmap )
         if(allocated(BTB)) deallocate(BTB,ia_btb,ja_btb)
 

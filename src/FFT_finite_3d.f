@@ -126,39 +126,7 @@ c                       Set up the crystal element properties as well
         call avg_cry_elast_props
         readnew = .true.
       case (7)
-        do while ( .true. )
-          call readsc()
-          if     ( matchs('F_xx',4) ) then
-            if ( .not. numd( F_total(1) ) ) 
-     &         call errmsg(13,dum,dums,dumr,dumd)
-          elseif ( matchs('F_xy',4) ) then
-            if ( .not. numd( F_total(2) ) ) 
-     &         call errmsg(13,dum,dums,dumr,dumd)
-          elseif ( matchs('F_xz',4) ) then
-            if ( .not. numd( F_total(3) ) ) 
-     &         call errmsg(13,dum,dums,dumr,dumd)
-          elseif ( matchs('F_yx',4) ) then
-            if ( .not. numd( F_total(4) ) ) 
-     &         call errmsg(13,dum,dums,dumr,dumd)
-          elseif ( matchs('F_yy',4) ) then
-            if ( .not. numd( F_total(5) ) ) 
-     &         call errmsg(13,dum,dums,dumr,dumd)
-          elseif ( matchs('F_yz',4) ) then
-            if ( .not. numd( F_total(6) ) ) 
-     &         call errmsg(13,dum,dums,dumr,dumd)
-          elseif ( matchs('F_zx',4) ) then
-            if ( .not. numd( F_total(7) ) ) 
-     &         call errmsg(13,dum,dums,dumr,dumd)
-          elseif ( matchs('F_zy',4) ) then
-            if ( .not. numd( F_total(8) ) ) 
-     &         call errmsg(13,dum,dums,dumr,dumd)
-          elseif ( matchs('F_zz',4) ) then
-            if ( .not. numd( F_total(9) ) ) 
-     &         call errmsg(13,dum,dums,dumr,dumd)
-          else
-            exit
-          end if
-        end do
+        call inlodcase()
         readnew = .false.
       case (8)
         call inlod()

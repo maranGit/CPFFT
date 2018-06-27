@@ -9,18 +9,18 @@ c     *                                                              *
 c     ****************************************************************
 c
       subroutine inlod()
-      use fft, only: mults, nstep
+      use fft, only: mults, nstep, BC_all, FP_max, isNBC
       implicit none
       include 'param_def'
 c                         global
 c                         local
       integer, allocatable, dimension(:) :: intlst
       integer :: lenlst, errnum
-      integer :: dum
+      integer :: dum, i
       character :: dums*8
       real :: dumr
-      double precision :: dumd
-      double precision, parameter :: zero = 0.0D0
+      double precision :: dumd, nstep_d
+      double precision, parameter :: zero = 0.0D0, one = 1.0D0
       logical, external :: matchs
 
       allocate( intlst(mxstep) )
@@ -51,6 +51,16 @@ c                         local
       end do
 
       deallocate( intlst )
+c
+c                 fill BC_all for current load case
+c
+      nstep_d = dble(nstep)
+      do i = 1, nstep
+        BC_all(1:9, i) = FP_max(1:9) * dble(i) / nstep_d
+      end do
+      if(.not. isNBC(1)) BC_all(1, 1:nstep) = BC_all(1, 1:nstep) + one
+      if(.not. isNBC(5)) BC_all(5, 1:nstep) = BC_all(5, 1:nstep) + one
+      if(.not. isNBC(9)) BC_all(9, 1:nstep) = BC_all(9, 1:nstep) + one
       return
 
       contains

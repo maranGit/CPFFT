@@ -57,7 +57,7 @@ c     element definition
 
 c     total strains
       do ii = 1, 9
-        write(out,1005) ii, F_total(ii)
+        write(out,1005) ii, FP_max(ii)
       end do
 
 c     constraints of each step

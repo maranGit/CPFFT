@@ -63,6 +63,7 @@ OBJ = $(MODS) \
 	$(OD)/user_list.o \
 	$(OD)/inelem.o \
 	$(OD)/inlod.o \
+	$(OD)/inlodcase.o \
 	$(OD)/indypm.o \
 	$(OD)/oudriv.o \
 	$(OD)/ouneut.o \

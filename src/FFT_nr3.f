@@ -12,22 +12,25 @@ c     *                                                              *
 c     ****************************************************************
 c
       subroutine FFT_nr3()
-      use fft, only: barF, DbarF, barF_t, b, Fn1, Fn, Pn1, Pn, dFm, 
-     &                straininc, tolPCG, tolNR, maxIter, nstep,
-     &                mults, F_total, out_step, N3
+      use fft, only: b, Fn1, Fn, Pn1, Pn, dFm, isNBC, BC_all,
+     &               straininc, tolPCG, tolNR, maxIter, nstep,
+     &               out_step, N3
       implicit none
       include 'common.main'
 
 c                    local
       real(8), parameter :: zero = 0.0D0, one = 1.0D0, mone = -1.0D0
-      real(8) :: Fnorm, resfft
+      real(8) :: Fnorm, resfft, DbarF(9), barF(9), barF_t(9)
       real(8) :: C_homo(81)
       integer :: step, iiter, ii
       logical :: debug
       real(8), external :: dnrm2
-
-      debug = .false.
-c 
+c
+      data barF   /one,zero,zero,zero,one,zero,zero,zero,one/
+      data barF_t /one,zero,zero,zero,one,zero,zero,zero,one/
+      data DbarF  /zero,zero,zero,zero,zero,zero,zero,zero,zero/
+      data debug  /.false./
+c
 c                         global step increment
 c 
       do step = 1, nstep
@@ -37,20 +40,19 @@ c
 c
 c              average strain increment
 c
-        DbarF = zero
-        do ii = 1, nstrs
-          DbarF( :, ii ) = F_total( ii ) * mults( step )
-        end do
+        barF  = BC_all(1:9, step)
+        DbarF = barF - barF_t
 c
-c                      average strain
-        barF = barF_t + DbarF
-
 c     initial residual: distribute "barF" over grid using K4
+c
         b = zero
-        call G_K_dF(DbarF, b, .true.)
+        dFm = zero
+        do ii = 1, 9
+          dFm(1:N3, ii) = DbarF(ii)
+        end do
+        call G_K_dF(dFm, b, .true.)
         call dscal(N3*nstrs, mone, b(1,1), 1)
-
-        Fn1 = Fn1 + DbarF
+        Fn1 = Fn1 + dFm
         Fnorm = dnrm2(N3*nstrs, Fn1(1,1), 1)
         resfft = Fnorm
         iiter = 0
@@ -78,8 +80,8 @@ c
 c
 c            update state variables
 c
+        barF_t(1:9) = barF(1:9)
         call dcopy(N3*nstrs, Fn1(1,1), 1, Fn(1, 1), 1)
-        call dcopy(N3*nstrs, barF(1,1), 1, barF_t(1, 1), 1)
         call dcopy(N3*nstrs, Pn1(1,1), 1, Pn(1, 1), 1)
 c
 c            compute homogenized tangent stiffness
