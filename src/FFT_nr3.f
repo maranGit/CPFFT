@@ -82,7 +82,8 @@ c
 c         initialize for most current boundary condition
 c
           Fnorm = dnrm2(N3*nstrs, Fn1(1,1), 1)
-          resfft = one
+          resfft = dnrm2(N3*nstrs, dFm(1,1), 1) / Fnorm
+          write(*,*) resfft
           iiter_EBC = 0
 c
 c         iterate as long as iterative update does not vanish
@@ -136,6 +137,7 @@ c            b is borrowed as intermediate array to save memory!
 c
           call tangent_homo( C_homo )
           call NBC_update(C_homo(1),DbarF(1),P_bar(1),PBC(1),isNBC(1))
+          barF = barF + DbarF
 c
           iiter_NBC = iiter_NBC + 1
 
