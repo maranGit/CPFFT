@@ -70,6 +70,7 @@ c         dFm = repmat( DbarF, N3, 1 )
           do ii = 1, 9
             dFm(1:N3, ii) = DbarF(ii)
           end do
+          Fnorm = dnrm2(N3*nstrs, Fn1(1,1), 1)
           call daxpy(N3*nstrs, one, dFm(1,1), 1, Fn1(1,1), 1)
 c
 c         get b, solve for first dFm
@@ -81,7 +82,6 @@ c
 c
 c         initialize for most current boundary condition
 c
-          Fnorm = dnrm2(N3*nstrs, Fn1(1,1), 1)
           resfft = dnrm2(N3*nstrs, dFm(1,1), 1) / Fnorm
           write(*,*) resfft
           iiter_EBC = 0
@@ -104,6 +104,7 @@ c
             iiter_EBC = iiter_EBC + 1
 
           enddo ! end N-R loop
+          call drive_eps_sig( step, iiter_EBC )
 c
 c                   check if P_bar converges to PBC
 c
