@@ -326,13 +326,6 @@ c     allocate internal variables
         endif
       enddo
 
-      open(unit=20,file='Ghat4')
-      do ii = 1, N3
-        write(20,999) Ghat4(ii,1:81)
-      end do
-  999 format(1x,81f6.2)
-      close(20)
-
 c     deallocate internal variables
       deallocate( q, q_dot_q )
       return
