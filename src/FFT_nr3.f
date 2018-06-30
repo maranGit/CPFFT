@@ -37,7 +37,7 @@ c                         global step increment
 c 
       do step = 1, nstep
 
-        write(*,*) "Now starting step ",step
+        write(out,1000) step
         ltmstp = step
 c
 c                         extract boundary condition
@@ -83,7 +83,7 @@ c
 c         initialize for most current boundary condition
 c
           resfft = dnrm2(N3*nstrs, dFm(1,1), 1) / Fnorm
-          write(*,*) resfft
+          write(out,1003) resfft
           iiter_EBC = 0
 c
 c         iterate as long as iterative update does not vanish
@@ -96,7 +96,7 @@ c
             call fftPcg(b, dFm, tolPCG, out)
             call daxpy(N3*nstrs, one, dFm(1,1), 1, Fn1(1,1), 1)
             resfft = dnrm2(N3*nstrs, dFm(1,1), 1) / Fnorm
-            write(*,*) resfft
+            write(out,1001) iiter_EBC, resfft
             if ( iiter_EBC .eq. maxIter ) then
               write(out,9999)
               call die_abort()
@@ -122,7 +122,12 @@ c           || Pbar - PBC || only when PBC(ii) is prescribed
      &                 + (P_bar(ii)-PBC(ii)) * (P_bar(ii)-PBC(ii))
 c
           end do
-          resPbar(3) = sqrt( resPbar(1) / resPbar(2) )
+          if ( resPbar(2) .lt. 1.0D-8 ) then
+            resPbar(3) = sqrt( resPbar(1) )
+          else
+            resPbar(3) = sqrt( resPbar(1) / resPbar(2) )
+          end if
+          write(out,1002) iiter_NBC, resPbar(3)
           if ( resPbar(3) .le. tolNR ) exit
 c
 c                 check if exceed maximum iteration
@@ -169,6 +174,11 @@ c
  9999 format(/,'>> Error: Newton loop does not converge.')
  9998 format(/,'>> Error: Prescribed stress cannot be reached ',
      &         'within given maximum iteration.'/)
+ 1000 format(/,4x,'--------------------------------------------------',
+     &          '-----------------------',/,5x,'Now starting step: ',i7)
+ 1001 format(7x,'Iteration ', i5, 7x, '  residual ', d10.3)
+ 1002 format(7x,'Stress iteration ',i5, '  residual ',d10.3)
+ 1003 format(7x,'Initial residual ', 16x, d10.3)
       end subroutine
 c
 c     ****************************************************************
@@ -193,6 +203,7 @@ c     input variables
       real(8), intent(out) :: x(veclen)
 
 c     internal variables
+      integer, parameter :: maxIter = 1000
       integer, parameter :: nipar = 128, ndpar = 128
       real(8), parameter :: zero = 0.0D0, one = 1.0D0
       integer :: ipar( nipar ), itercount, maxit, RCI_request
@@ -202,7 +213,7 @@ c     internal variables
       real(8), external :: dnrm2
     
 c     initialize parameters
-      debug = .true.
+      debug = .false.
       maxit = veclen ! maximum number of iteration
       ipar = 0
       itercount = 0
@@ -224,7 +235,7 @@ c                   all zero solution
       if ( n2b .eq. zero ) then
         x = zero
         relres = zero
-        write(out,1001) itercount, relres
+        if ( debug ) write(out,1001) itercount, relres
         return
       endif
 c
@@ -235,7 +246,7 @@ c     initialize the solver
       ipar( 1 ) = veclen ! length
       ipar( 2 ) = 6 ! the error and warning written to screen
       ipar( 3 ) = 1 ! current stage of the RCI CG computations
-      ipar( 5 ) = 1000 ! maximum iteration
+      ipar( 5 ) = maxIter ! maximum iteration
       ipar( 8 ) = 1 ! performs stopping test for the maximum iterations
       ipar( 9 ) = 0 ! dcg does not provide stopping test
       ipar( 10 ) = 1 ! I provide stopping test
@@ -302,7 +313,12 @@ c     Retrieves the number of the current iteration
      &             ipar, dpar, tmpPcg, itercount)
 c
       relres = resnorm / n2b
-      write(out,1001) itercount, relres
+      if ( debug ) write(out,1001) itercount, relres
+      if ( itercount .ge. maxIter ) then
+        write(out,9003) maxIter
+        call MKL_FREE_BUFFERS
+        call die_abort()
+      end if
 c
 c              release memory in dcg, otherwise memory leak
 c
@@ -313,6 +329,7 @@ c
  9001 format(5x,'>>>fftPcg: dcg_check failed'
      &     /,10x,'returned the ERROR code:      ',i2)
  9002 format(5x,'>>>fftPcg: precondition is not available now')
+ 9003 format(5x,'>>>fftPcg: fail to converge within ',i6,' iterations')
  9999 format(5x,'>>> This example FAILED as the solver has',
      &     /,10x,'returned the ERROR code:      ',i2)
  1001 format(/1x,'>>> pcg converged at iteration ', i4, 

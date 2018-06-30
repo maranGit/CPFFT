@@ -359,7 +359,7 @@ c
 c     Ran: hard coded variables for autoblock
 c
       auto_size    = mxvl  !  from param_def
-      display      = .true.
+      display      = .false.
 c
 c                     first generation of automatic assignment of
 c                     elements to blocks.
