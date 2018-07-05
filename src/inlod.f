@@ -19,7 +19,7 @@ c                         local
       integer :: dum, i
       character :: dums*8
       real :: dumr
-      double precision :: dumd, nstep_d
+      double precision :: dumd
       double precision, parameter :: zero = 0.0D0, one = 1.0D0
       logical, external :: matchs
 
@@ -54,9 +54,8 @@ c                         local
 c
 c                 fill BC_all for current load case
 c
-      nstep_d = dble(nstep)
       do i = 1, nstep
-        BC_all(1:9, i) = FP_max(1:9) * dble(i) / nstep_d
+        BC_all(1:9, i) = FP_max(1:9) * mults(i)
       end do
       if(.not. isNBC(1)) BC_all(1, 1:nstep) = BC_all(1, 1:nstep) + one
       if(.not. isNBC(5)) BC_all(5, 1:nstep) = BC_all(5, 1:nstep) + one
