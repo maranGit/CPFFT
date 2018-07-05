@@ -85,6 +85,7 @@ c
           resfft = dnrm2(N3*nstrs, dFm(1,1), 1) / Fnorm
           write(out,1003) resfft
           iiter_EBC = 0
+          resfft = one ! guarantee at least one iteration
 c
 c         iterate as long as iterative update does not vanish
 c
