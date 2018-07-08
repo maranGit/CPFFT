@@ -54,8 +54,9 @@ c                         local
 c
 c                 fill BC_all for current load case
 c
-      do i = 1, nstep
-        BC_all(1:9, i) = FP_max(1:9) * mults(i)
+      BC_all(1:9,1) = FP_max(1:9) * mults(1)
+      do i = 2, nstep
+        BC_all(1:9, i) = BC_all(1:9, i-1) + FP_max(1:9) * mults(i)
       end do
       if(.not. isNBC(1)) BC_all(1, 1:nstep) = BC_all(1, 1:nstep) + one
       if(.not. isNBC(5)) BC_all(5, 1:nstep) = BC_all(5, 1:nstep) + one
