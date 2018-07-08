@@ -54,14 +54,22 @@ c     ===================== global state variables =====================
       integer, dimension(:), save, allocatable :: matList
 
 c     ================ fft related temporary variables ================
-      real(8), allocatable :: real1(:)
-      complex(8), allocatable :: cplx3half(:,:,:), cplx1half(:)
+c     real(8), allocatable :: real1(:)
+c     complex(8), allocatable :: cplx3half(:,:,:), cplx1half(:)
+c
+c            form coefficients for fftshift and ifftshift
+c
+c          coeffs1 is the real part of e^(-i*x*h/2)
+c          coeffs2 is the imaginary part of e^(-i*x*h/2)
+c          for forward transformation, use (coeffs1, coeffs2)
+c          for backward transformation, use (coeffs1, -coeffs2)
+c
+      real(8), allocatable :: coeffs1(:), coeffs2(:)
 
 c     ================ pcg related temporary variables ================
       real(8), allocatable :: tmpPcg( :, : )
 
 c     =============== G_K_dF related temporary variables ===============
-      real(8), dimension(:,:), allocatable :: tmpReal
-      complex(8), dimension(:,:), allocatable :: tmpCplx
+      real(8), dimension(:,:), allocatable :: real1, real2, real3
 
       end module

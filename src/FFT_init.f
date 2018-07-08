@@ -164,7 +164,11 @@ c
 c     form G_hat_4 matrix and store in Ghat4
 c
       call formG()
-      
+c
+c     form coefficients for fftshift and ifftshift
+c
+      call formfftshift(coeffs1, coeffs2)
+c
       end subroutine
 c
 c     ****************************************************************
@@ -207,16 +211,15 @@ c
         allocate ( matList(N3) )
   
 c     allocate FFT related variables
-        allocate ( real1(N3) )
-        allocate ( cplx3half(Nhalf,N,N) )
-        allocate ( cplx1half(Nhalf*N*N) )
+        allocate ( coeffs1(N3), coeffs2(N3) )
   
 c     allocate pcg related variables
         allocate ( tmpPcg(N3ndim2, 4) )
   
 c     allocate internal variables
-        allocate( tmpReal(N3, ndim2) )
-        allocate( tmpCplx(N3, ndim2) )
+        allocate( real1(N3, ndim2) )
+        allocate( real2(N3, ndim2) )
+        allocate( real3(N3, ndim2) )
 
       case ( 3 )
 c     allocate global arrays in Warp3d
@@ -231,9 +234,9 @@ c     deallocate variables in module
 c
         deallocate( Ghat4, K4, Fn, Fn1 )
         deallocate( Pn, Pn1, b, dFm, matList )
-        deallocate( real1, cplx3half, cplx1half )
+        deallocate( coeffs1, coeffs2 )
         deallocate( tmpPcg )
-        deallocate( tmpReal, tmpCplx )
+        deallocate( real1, real2, real3 )
         deallocate( history_blk_list )
         do blk = 1, nelblk
           deallocate( cep_blocks(blk)%vector )
@@ -328,6 +331,51 @@ c     allocate internal variables
 
 c     deallocate internal variables
       deallocate( q, q_dot_q )
+      return
+      end subroutine
+c
+c     ****************************************************************
+c     *                                                              *
+c     *                 subroutine   formfftshift                    *
+c     *                                                              *
+c     *                       written by : RM                        *
+c     *                                                              *
+c     *                   last modified: 7/7/18                      *
+c     *                                                              *
+c     *               form coefficient for fftshift                  *
+c     *                                                              *
+c     ****************************************************************
+c
+      subroutine formfftshift( a, b )
+      use fft, only: N, Nhalf
+      implicit none
+c
+c                         global
+c
+      real(8) :: a(N,N,*), b(N,N,*)
+c
+c                         local
+c
+      integer :: i, j, k
+      real(8) :: temp, NhN, cosx, sinx
+      real(8), parameter :: zero = 0.0D0, one = 1.0D0
+      real(8), parameter :: two = 2.0D0, four = 4.0D0
+      real(8), parameter :: PI = four * atan (one)
+c
+      NhN = dble(Nhalf) * two * PI / dble(N)
+c
+      do k = 1, N
+        do j = 1, N
+          do i = 1, N
+            temp = NhN * dble( i + j + k - 3 )
+            cosx = dcos( temp )
+            sinx = dsin( temp )
+            a(i,j,k) = cosx
+            b(i,j,k) = -sinx
+          end do
+        end do
+      end do
+c
       return
       end subroutine
 c
