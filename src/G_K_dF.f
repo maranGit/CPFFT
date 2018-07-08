@@ -193,11 +193,11 @@ c
 c
 c     ****************************************************************
 c     *                                                              *
-c     *             subroutine   trans2, ddot42n, ddot42n_cpmlx      *
+c     *                    subroutine   ddot42n                      *
 c     *                                                              *
 c     *                       written by : RM                        *
 c     *                                                              *
-c     *                   last modified: 1/22/18                     *
+c     *                    last modified: 8/7/18                     *
 c     *                                                              *
 c     *                       should be inlined                      *
 c     *                                                              *
@@ -239,54 +239,3 @@ c
 
       return
       end subroutine
-c
-c     subroutine ddot42n_cmplx(A4, B2, n)
-c                 A4_ijkl * B2_kl = C2_ij, n rows
-c                 A4 is real, B2 is complex, C2 is complex
-c     implicit none
-c
-c                    global
-c
-c     integer, intent(in)     :: n
-c     real(8), intent(in)     :: A4( n, * )
-c     complex(8)              :: B2( n, * )
-c
-c                    local
-c
-c     complex(8), allocatable :: C2( :, : )
-c     integer                 :: i, j, k, l
-c     real(8), parameter      :: zero = 0.0D0
-c
-c     allocate( C2( n, 9 ) )
-c     C2 = (zero, zero)
-c     D2 = [ 1, 4, 7, 2, 5, 8, 3, 6, 9 ]
-c     do ii = 1, 9
-c       do jj = 1, 9
-c         p = D2(jj) + (ii - 1) * 9
-c         C2(:, ii) = C2(:, ii) + dcmplx(A4(:, p),0.0D0) * B2(:, jj)
-c       enddo
-c     enddo
-c
-c     do j = 1, 9
-c       l = ( j - 1 ) * 9
-c
-c       do k = 1, 9
-c
-c         do i = 1, n
-c
-c           C2(i,j) = C2(i,j) + dcmplx(A4(i,l+k),0.0D0) * B2(i,k)
-c
-c         end do
-c
-c       end do
-c
-c     end do
-c
-c     do i = 1, 9
-c       B2(1:n,i) = C2(1:n,i)
-c     end do
-c
-c     deallocate( C2 )
-c
-c     return
-c     end subroutine
