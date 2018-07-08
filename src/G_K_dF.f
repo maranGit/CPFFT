@@ -24,27 +24,49 @@ c
       integer :: ii
 
       data local_debug  / .false. /
-
-c     multiply by K4
+c
+c                    multiply by K4 if required
+c
       if (flgK) then
-        call ddot42n(K4(1,1), F(1,1), real1(1,1), N3)
+        call ddot42n(K4(1,1), F(1,1), real1(1,1), GKF(1,1), N3)
       else
         call dcopy(N3*ndim2, F(1,1), 1, real1(1,1), 1)
       endif
-
-c     fft
+c
+c                               FFT
+c
+c     In the original algorithm, this step should be
+c       ifftshift( fftn( fftshift( x ) ) ).
+c     Here, multiplication with Fourier coefficient is employed
+c       as pre-processing equivalent to fftshift and ifftshift.
+c     There should be two multiplication before FFT and after FFT.
+c     The second one is omitted because it cancled with the 
+c       multiplication before IFFT.
+c     Therefore, the intermediate result should be different from
+c       my corresponding MATLAB code.
+c
       do ii = 1, ndim2
         call fftfem3d(real1(1,ii), real2(1,ii), real3(1,ii))
       enddo
 c
 c                     multiply by G_hat matrix
 c             original complex array is (real2, real3)
-c             after convolution, it is (real1, real2)
+c             after convolution,  it is (real1, real2)
+c             GKF serves as a temporary array
 c
-      call ddot42n(Ghat4(1,1), real2(1,1), real1(1,1), N3)
-      call ddot42n(Ghat4(1,1), real3(1,1), real2(1,1), N3)
+      call ddot42n(Ghat4(1,1), real2(1,1), real1(1,1), GKF(1,1), N3)
+      call ddot42n(Ghat4(1,1), real3(1,1), real2(1,1), GKF(1,1), N3)
 c
-c     inverse fft
+c                              IFFT
+c
+c     In the original algorithm, this step should be
+c       ifftshift( ifftn( fftshift( x ) ) ).
+c     Here, multiplication with Fourier coefficient is employed
+c       as pre-processing equivalent to fftshift and ifftshift.
+c     There should be two multiplication before IFFT and after IFFT.
+c     The first one is omitted because it cancled with the 
+c       multiplication after FFT.
+c
       do ii = 1, ndim2
         call ifftfem3d(GKF(1,ii), real1(1,ii), real2(1,ii))
       enddo
@@ -204,7 +226,7 @@ c     *                       should be inlined                      *
 c     *                                                              *
 c     ****************************************************************
 c
-      subroutine ddot42n(A4, B2, C2, n)
+      subroutine ddot42n(A4, B2, C2, tmp, n)
 c
 c                  A4_ijkl * B2_kl = C2_ij, n rows
 c
@@ -214,29 +236,21 @@ c                    global
 c
       integer, intent(in)  :: n
       real(8), intent(in)  :: A4(n,*), B2(n,*)
-      real(8), intent(out) :: C2(n,*)
+      real(8), intent(out) :: C2(n,*), tmp(n,*)
 c
 c                    local
 c
-      integer :: i, j, k, l
-      real(8), parameter :: zero = 0.0D0
+      integer :: i, j
+      real(8), parameter :: one = 1.0D0
 c
-      C2(1:n,1:9) = zero
-
-      do j = 1, 9
-        l = ( j - 1 ) * 9
-
-        do k = 1, 9
-
-          do i = 1, n
-
-            C2(i,j) = C2(i,j) + A4(i,l+k) * B2(i,k)
-
-          end do
-
-        end do
-
+      do i = 1, 9
+        j = i * 9 - 8
+        call vdmul( n*9, A4(1,j), B2(1,1), tmp(1,1) )
+        call daxpy( n*4, one, tmp(1,6), 1, tmp(1,2), 1 )
+        call daxpy( n*2, one, tmp(1,4), 1, tmp(1,2), 1 )
+        call daxpy( n  , one, tmp(1,3), 1, tmp(1,2), 1 )
+        call vdadd( n, tmp(1,1), tmp(1,2), C2(1,i) )
       end do
-
+c
       return
       end subroutine
