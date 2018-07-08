@@ -11,17 +11,19 @@ c
       subroutine G_K_dF(F, GKF, flgK)
       use fft, only: N3, ndim2, Ghat4, K4, real1, real2, real3
       implicit none
-
-c     input variables
-      real(8), intent(in) :: F(N3, ndim2)
-      real(8), intent(out) :: GKF(N3, ndim2)
-      logical flgK
 c
-c               local
+c                        global
+c
+      real(8), intent(in)  :: F(N3, *)
+      real(8), intent(out) :: GKF(N3, *)
+      logical, intent(in)  :: flgK
+c
+c                        local
+c
       logical :: local_debug
       integer :: ii
 
-      local_debug = .false.
+      data local_debug  / .false. /
 
 c     multiply by K4
       if (flgK) then
@@ -44,7 +46,6 @@ c
 c
 c     inverse fft
       do ii = 1, ndim2
-c       call ifftfem3d(tmpCplx(1,ii), GKF(1,ii))
         call ifftfem3d(GKF(1,ii), real1(1,ii), real2(1,ii))
       enddo
 c
@@ -87,8 +88,8 @@ c     frequently used array
 c
 c                          perform fftshift
 c
-      call vdmul( N3, in_re, coeffs1, out_re )
-      call vdmul( N3, in_re, coeffs2, out_im )
+      call vdmul( N3, in_re(1), coeffs1(1), out_re(1) )
+      call vdmul( N3, in_re(1), coeffs2(1), out_im(1) )
 c
 c                  create and personalize descriptor
 c
@@ -180,9 +181,9 @@ c
 c
 c                          perform ifftshift
 c
-      call vdmul( N3, out_re, coeffs1, in_re )
-      call vdmul( N3, out_im, coeffs2, out_re )
-      call daxpy( N3, one, out_re, 1, in_re, 1 )
+      call vdmul( N3, out_re(1), coeffs1(1), in_re(1)  )
+      call vdmul( N3, out_im(1), coeffs2(1), out_re(1) )
+      call daxpy( N3, one      , out_re(1) , 1, in_re(1), 1 )
 c
 c                          free descriptor
 c
