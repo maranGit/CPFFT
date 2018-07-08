@@ -61,12 +61,9 @@ c                    NR loop for natural boundary condition
 c
         do while ( .true. )
 c
-c         initial residual: distribute "barF" over grid using K4
-c
-          b = zero
-c
+c         initial residual: distribute "barF" over grid
 c         dFm = repmat( DbarF, N3, 1 )
-          dFm = zero
+c
           do ii = 1, 9
             dFm(1:N3, ii) = DbarF(ii)
           end do
@@ -75,9 +72,9 @@ c         dFm = repmat( DbarF, N3, 1 )
 c
 c         get b, solve for first dFm
 c
-          call G_K_dF(dFm, b, .true.)
+          call G_K_dF(dFm(1,1), b(1,1), .true.)
           call dscal(N3*nstrs, mone, b(1,1), 1)
-          call fftPcg(b, dFm, tolPCG, out)
+          call fftPcg(b(1,1), dFm(1,1), tolPCG, out)
           call daxpy(N3*nstrs, one, dFm(1,1), 1, Fn1(1,1), 1)
 c
 c         initialize for most current boundary condition
@@ -92,9 +89,9 @@ c
           do while ( resfft .gt. tolNR )
 
             call drive_eps_sig( step, iiter_EBC )
-            call G_K_dF(Pn1, b, .false.)
+            call G_K_dF(Pn1(1,1), b(1,1), .false.)
             call dscal(N3*nstrs, mone, b(1,1), 1)
-            call fftPcg(b, dFm, tolPCG, out)
+            call fftPcg(b(1,1), dFm(1,1), tolPCG, out)
             call daxpy(N3*nstrs, one, dFm(1,1), 1, Fn1(1,1), 1)
             resfft = dnrm2(N3*nstrs, dFm(1,1), 1) / Fnorm
             write(out,1001) iiter_EBC, resfft
@@ -199,33 +196,34 @@ c
       implicit none
 
 c     input variables
-      integer :: out
-      real(8), intent(in) :: b(veclen), tol
-      real(8), intent(out) :: x(veclen)
+      integer, intent(in)  :: out
+      real(8), intent(in)  :: b(*), tol
+      real(8), intent(out) :: x(*)
 
 c     internal variables
       integer, parameter :: maxIter = 1000
       integer, parameter :: nipar = 128, ndpar = 128
       real(8), parameter :: zero = 0.0D0, one = 1.0D0
-      integer :: ipar( nipar ), itercount, maxit, RCI_request
-      real(8) :: dpar( ndpar ), n2b, resnorm, relres, res( veclen )
+      integer :: ipar( nipar ), itercount, RCI_request
+      real(8) :: dpar( ndpar ), n2b, resnorm, relres
       real(8) :: tolb
       logical :: passflg, debug
       real(8), external :: dnrm2
-    
+c
+      data debug /.false./
+c
 c     initialize parameters
-      debug = .false.
-      maxit = veclen ! maximum number of iteration
+c
+      x(1:veclen) = zero
       ipar = 0
       itercount = 0
       dpar = zero
-      tmpPcg = zero
       passflg = .false.
-      x = zero
-      n2b = dnrm2( veclen, b, 1 )
+      n2b = dnrm2( veclen, b(1), 1 )
       tolb = tol * n2b
-      
+c
 c                improper tolerance
+c
       if ( tol .le. epsilon(one) .or. tol .ge. one ) then
         write(out,9000) tol
         call die_abort
@@ -233,17 +231,19 @@ c                improper tolerance
 c
 c               check for all zero right hand side vector
 c                   all zero solution
-      if ( n2b .eq. zero ) then
-        x = zero
-        relres = zero
-        if ( debug ) write(out,1001) itercount, relres
+c
+      if ( n2b .le. epsilon(one) ) then
+        x(1:veclen) = zero
+        write(out,1002)
         return
       endif
 c
 c     initialize the solver
+c     I cannot remember why I use this order ...
+c
       dpar( 1 ) = tol ! specifies the relative tolerance.
-      call dcg_init( veclen, x,b, RCI_request, 
-     &               ipar, dpar, tmpPcg )
+      call dcg_init( veclen, x(1), b(1), RCI_request,
+     &               ipar, dpar, tmpPcg(1,1) )
       ipar( 1 ) = veclen ! length
       ipar( 2 ) = 6 ! the error and warning written to screen
       ipar( 3 ) = 1 ! current stage of the RCI CG computations
@@ -251,67 +251,63 @@ c     initialize the solver
       ipar( 8 ) = 1 ! performs stopping test for the maximum iterations
       ipar( 9 ) = 0 ! dcg does not provide stopping test
       ipar( 10 ) = 1 ! I provide stopping test
-
+c
 c     Checks the consistency and correctness of the user defined data
-      call dcg_check( veclen, x, b, RCI_request,
-     &                ipar, dpar, tmpPcg )
+c
+      call dcg_check( veclen, x(1), b(1), RCI_request,
+     &                ipar, dpar, tmpPcg(1,1) )
+c
       if (RCI_request .ne. 0) then
         write(out,9001) RCI_request
         call die_abort
       endif
 
       do while ( .true. )
+c
 c       Computes the approximate solution vector
-        call dcg(veclen, x, b, RCI_request, ipar, dpar, tmpPcg )
+c
+        call dcg(veclen, x(1), b(1), RCI_request,
+     &           ipar, dpar, tmpPcg(1,1) )
 c
 c       3 tasks according to RCI_request
 c
         select case (RCI_request)
   
         case (1) ! task 1: update solution, A*tmpPcg(:,1) = tmpPcg(:,2)
-          call G_K_dF(tmpPcg(:, 1), tmpPcg(:, 2), .true.)
-          cycle
-
-        case (2) ! task 2: perform the stopping tests
-          res = tmpPcg(:, 3)
-          resnorm = dnrm2( veclen, res, 1 )
-          if (resnorm.gt.tolb .and. resnorm.gt.tol) then
-            passflg = .false.
-          else
-            call G_K_dF(x, res, .true.)
-            ! call DAXPY(veclen, -1.D0, b, 1, res)
-            res = b - res
-            resnorm = dnrm2( veclen, res, 1 )
-            passflg = ( resnorm.le.tolb .or. resnorm.le.tol )
-          endif
 c
-          if ( .not. passflg ) then
-c           proceed with CG iterations
-            cycle
-          else
-c           stop CG iterations
-            exit
-          endif
-        
+          call G_K_dF(tmpPcg(1, 1), tmpPcg(1, 2), .true.)
+          cycle
+c
+        case (2) ! task 2: perform the stopping tests
+c
+          resnorm = dnrm2( veclen, tmpPcg(1, 3), 1 )
+          passflg = ( resnorm .le. tolb .or. resnorm .le. tol )
+          if ( passflg ) exit
+c
         case (3) ! task 3: apply the preconditioner
+c
           write(out,9002)
           call MKL_FREE_BUFFERS
           call die_abort
-
+c
         case (0) ! successfully converged
+c
           exit
-
+c
         case default
+c
 c         dcg gives error message, stop the program
           write(out,9999) RCI_request
           call MKL_FREE_BUFFERS
           call die_abort
+c
         end select
+c
       enddo
 
 c     Retrieves the number of the current iteration
-      call dcg_get(veclen, x, b, RCI_request,
-     &             ipar, dpar, tmpPcg, itercount)
+      call dcg_get(veclen, x(1), b(1), RCI_request,
+     &             ipar, dpar, tmpPcg(1,1), itercount)
 c
       relres = resnorm / n2b
       if ( debug ) write(out,1001) itercount, relres
@@ -335,6 +331,8 @@ c
      &     /,10x,'returned the ERROR code:      ',i2)
  1001 format(/1x,'>>> pcg converged at iteration ', i4, 
      &            ' to a solution with relative residual ',e14.6)
+ 1002 format(/1x,'>>> WARNING: Initial RHS is too small. ',
+     &           'Returning zero solution ...')
       end subroutine
 c
 c     ****************************************************************
