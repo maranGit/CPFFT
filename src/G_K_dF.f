@@ -21,8 +21,9 @@ c
 c                        local
 c
       logical :: local_debug
-      integer :: ii
-
+      integer :: ii, now_thread
+      integer, external :: omp_get_thread_num
+c
       data local_debug  / .false. /
 c
 c                    multiply by K4 if required
@@ -45,9 +46,15 @@ c       multiplication before IFFT.
 c     Therefore, the intermediate result should be different from
 c       my corresponding MATLAB code.
 c
+      call omp_set_dynamic( .false. )
+c$OMP PARALLEL DO ORDERED 
+c$OMP&         PRIVATE( ii, now_thread )
+c$OMP&         SHARED( real1, real2, real3, ndim2 )
       do ii = 1, ndim2
+        now_thread = omp_get_thread_num() + 1
         call fftfem3d(real1(1,ii), real2(1,ii), real3(1,ii))
       enddo
+c$OMP END PARALLEL DO
 c
 c                     multiply by G_hat matrix
 c             original complex array is (real2, real3)
@@ -67,9 +74,14 @@ c     There should be two multiplication before IFFT and after IFFT.
 c     The first one is omitted because it cancled with the 
 c       multiplication after FFT.
 c
+c$OMP PARALLEL DO ORDERED 
+c$OMP&         PRIVATE( ii, now_thread )
+c$OMP&         SHARED( real1, real2, GKF, ndim2 )
       do ii = 1, ndim2
+        now_thread = omp_get_thread_num() + 1
         call ifftfem3d(GKF(1,ii), real1(1,ii), real2(1,ii))
       enddo
+c$OMP END PARALLEL DO
 c
       return
       end subroutine
