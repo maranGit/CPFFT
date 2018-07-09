@@ -51,7 +51,7 @@ c
 
 c          use CG solver for d(delta_F) / d(F_bar)
 
-        call fftPcg(b, C_ij, tolPCG, out)
+        call fftPcg(b(1,1), C_ij(1,1), tolPCG, out)
 
 c     d(F)/d(F_bar) = delta(i,k) * delta(j,l) + d(delta_F) / d(F_bar)
 

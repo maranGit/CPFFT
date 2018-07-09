@@ -47,7 +47,7 @@ c     Therefore, the intermediate result should be different from
 c       my corresponding MATLAB code.
 c
       call omp_set_dynamic( .false. )
-c$OMP PARALLEL DO ORDERED 
+c$OMP PARALLEL DO
 c$OMP&         PRIVATE( ii, now_thread )
 c$OMP&         SHARED( real1, real2, real3, ndim2 )
       do ii = 1, ndim2

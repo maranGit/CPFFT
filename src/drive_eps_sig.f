@@ -28,7 +28,7 @@ c
       debug = .false.
 c
       call omp_set_dynamic( .false. )
-c$OMP PARALLEL DO ORDERED 
+c$OMP PARALLEL DO
 c$OMP&         PRIVATE( blk, now_thread )
 c$OMP&         SHARED( nelblk, iiter, step )
       do blk = 1, nelblk
