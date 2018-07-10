@@ -23,15 +23,28 @@ c                    local
       real(8) :: P_bar(9), resPbar(3), DbarF(9), barF(9), barF_t(9)
       real(8) :: FBC(9), PBC(9), C_homo(81), Fnorm, resfft, N3_dbl
       integer :: step, ii, jj, iiter_EBC, iiter_NBC
-      logical :: debug
+      logical :: debug, existNBC
       real(8), external :: dnrm2
 c
-      data barF   /one,zero,zero,zero,one,zero,zero,zero,one/
-      data barF_t /one,zero,zero,zero,one,zero,zero,zero,one/
-      data DbarF  /zero,zero,zero,zero,zero,zero,zero,zero,zero/
-      data debug  /.false./
+      data barF     / one,zero,zero,zero, one,zero,zero,zero, one/
+      data barF_t   / one,zero,zero,zero, one,zero,zero,zero, one/
+      data DbarF    /zero,zero,zero,zero,zero,zero,zero,zero,zero/
+      data P_bar    /zero,zero,zero,zero,zero,zero,zero,zero,zero/
+      data debug    /.false./
+      data existNBC /.false./
 c
       N3_dbl = dble(N3)
+c
+c                     flat indicating if NBC exists
+c            b is borrowed as intermediate array to save memory!
+c
+      do ii = 1, nstrs
+        if ( isNBC(ii) ) existNBC = .true.
+      end do
+c
+c                 initial homogenized tangent stiffness
+c
+      call tangent_homo( C_homo )
 c
 c                         global step increment
 c 
@@ -44,16 +57,21 @@ c                         extract boundary condition
 c
         PBC = zero
         FBC = zero
+        DbarF = zero
         do ii = 1, nstrs
           if ( isNBC(ii) ) then
             PBC( ii ) = BC_all( ii, step )
           else
             FBC( ii ) = BC_all( ii, step )
-c
-c           DbarF(EBC) = FBC, DbarF(NBC) = extrapolation
             DbarF( ii ) = FBC( ii ) - barF_t( ii )
           end if
         end do
+c
+c                       if NBC exists, update DbarF
+c
+        if ( existNBC ) then
+          call NBC_update(C_homo(1),DbarF(1),P_bar(1),PBC(1),isNBC(1))
+        end if
         barF = barF_t + DbarF
         iiter_NBC = 0
 c
@@ -114,7 +132,9 @@ c
             end do
             P_bar(ii) = P_bar(ii) / N3_dbl
             resPbar(2) = resPbar(2) + P_bar(ii) * P_bar(ii)
+c
 c           || Pbar - PBC || only when PBC(ii) is prescribed
+c
             if( .not. isNBC(ii) ) cycle
             resPbar(1) = resPbar(1) 
      &                 + (P_bar(ii)-PBC(ii)) * (P_bar(ii)-PBC(ii))
@@ -140,6 +160,7 @@ c            compute homogenized tangent stiffness
 c            b is borrowed as intermediate array to save memory!
 c
           call tangent_homo( C_homo )
+          DbarF = zero
           call NBC_update(C_homo(1),DbarF(1),P_bar(1),PBC(1),isNBC(1))
           barF = barF + DbarF
 c
@@ -149,7 +170,6 @@ c
 c
 c            update state variables
 c
-        DbarF(1:9) = barF(1:9) - barF_t(1:9)
         barF_t(1:9) = barF(1:9)
         call dcopy(N3*nstrs, Fn1(1,1), 1, Fn(1, 1), 1)
         call dcopy(N3*nstrs, Pn1(1,1), 1, Pn(1, 1), 1)
@@ -344,6 +364,7 @@ c     *                                                              *
 c     *                   last modified: 6/28/18                     *
 c     *                                                              *
 c     *              update delta_F for prescribed P                 *
+c     *              P_bar is old P, PBC is desired P                *
 c     *                                                              *
 c     ****************************************************************
 c
@@ -365,19 +386,27 @@ c
 c
 c                   form A matrix
 c
+c     do i = 1, nstrs
+c       AAA(1:nstrs,i) = C_homo(i,1:nstrs)
+c     end do
       do i = 1, nstrs
-        AAA(1:nstrs,i) = C_homo(i,1:nstrs)
-      end do
-      do i = 1, nstrs
-        if ( isNBC(i) ) cycle
-        AAA(1:nstrs, i) = zero
-        AAA(i, 1:nstrs) = zero
-        AAA(i, i)       = one
+c       if ( isNBC(i) ) cycle
+c       AAA(1:nstrs, i) = zero
+c       AAA(i, 1:nstrs) = zero
+c       AAA(i, i)       = one
+        if ( isNBC(i) ) then
+          AAA(i,1:nstrs) = C_homo(1:nstrs,i)
+          bbb(i) = PBC(i) - P_bar(i)
+        else
+          AAA(i,1:nstrs) = zero
+          AAA(i, i) = one
+          bbb(i) = DbarF(i)
+        end if
       end do
 c
 c                   form b vector
 c
-      bbb(1:nstrs) = PBC(1:nstrs) - P_bar(1:nstrs)
+c     bbb(1:nstrs) = PBC(1:nstrs) - P_bar(1:nstrs)
 c
 c                      solve
 c
@@ -389,11 +418,12 @@ c
 c
 c                   return DbarF
 c
-      DbarF(1:nstrs) = zero
-      do i = 1, nstrs
-        if ( .not. isNBC(i) ) cycle
-        DbarF(i) = bbb(i)
-      end do
+c     DbarF(1:nstrs) = zero
+c     do i = 1, nstrs
+c       if ( .not. isNBC(i) ) cycle
+c       DbarF(i) = bbb(i)
+c     end do
+      DbarF(1:nstrs) = bbb(1:nstrs)
 c
       return
       end subroutine
