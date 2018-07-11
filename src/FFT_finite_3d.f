@@ -39,10 +39,8 @@
           call ProcessInput(11)
         elseif(matchs('stop',4)) then
           call ProcessInput(12)
-          exit
         elseif(endfil(dum)) then
           call ProcessInput(13)
-          exit
         else
           call errmsg(4,dum,dums,dumr,dumd)
           readnew = .true.
@@ -69,6 +67,7 @@ c                        local
 
       select case (isw)
       case (1)
+        call setstarttime
         if(matchs('name',4)) call splunj
         if(label(dummy)) then
           stname = ' '
@@ -150,9 +149,9 @@ c
         call oudrive()
         readnew = .true.
       case (12)
-        call fftAllocate( 2 )
+        call CPFFT_normal_stop
       case (13)
-        call fftAllocate( 2 )
+        call CPFFT_normal_stop
       case (14)
         call incrystal(out)
         readnew = .true.
@@ -163,3 +162,61 @@ c
       return
       end subroutine
       end program
+c
+c     ****************************************************************
+c     *                                                              *
+c     *                 subroutine CPFFT_normal_stop                 *
+c     *                                                              *
+c     *                       written by : RM                        *
+c     *                                                              *
+c     *                   last modified : 7/11/2018 rhd              *
+c     *                                                              *
+c     *     execute a normal shutdown with messages, etc.            *
+c     *                                                              *
+c     ****************************************************************
+c
+c
+
+      subroutine CPFFT_normal_stop
+c
+      use file_info
+      implicit none
+      include 'common.main'
+c
+      integer :: i
+      real :: t1, dumr, warptime, pardiso_time
+      real, external :: wcputime
+      character(len=8) :: stcnam, dums, sdate_*24
+      character(len=80) :: name, stflnm, rtflnm
+      logical :: hilcmd, sbflg1, sbflg2
+      logical :: endcrd, label, matchs, debug1, debug2, debug, endfil,
+     &           string, matchs_exact
+      logical, parameter :: output_1_thread_cpu_times = .false.
+c
+c
+c                       cleanup some allocs first
+c
+      call cleanup_crystal
+      call fftAllocate( 2 )
+c
+      write(out,*)
+      write(out,*)
+      t1 = wcputime ( 1 )
+      write(out,'(">> total job wall time (secs): ", f12.2)') t1
+c
+c                      close input and output files
+c
+      close (out)
+      if( filcnt .gt. 1 ) then
+         do i = filcnt, 2, -1
+            close(i)
+         end do
+      end if
+c
+c         MPI:
+c            tell workers we are ending now and then stop.
+c         threads - Fortran stop
+c
+      call die_gracefully
+c
+      end

@@ -15,15 +15,15 @@ c
       character(len=20), save, 
      &   allocatable, dimension(:) :: material_model_names
 
-      logical          :: mat_assigned(500) ! if assigned
-      integer          :: imatprp(300,500)
-      real             :: matprp(300,500)
-      logical          :: lmtprp(300,500)
+      logical, save    :: mat_assigned(500) ! if assigned
+      integer, save    :: imatprp(300,500)
+      real   , save    :: matprp(300,500)
+      logical, save    :: lmtprp(300,500)
       equivalence (matprp,lmtprp)
       equivalence (matprp,imatprp)
-      double precision :: dmatprp(300,500)
-      character(len=24), dimension(300,500) :: smatprp
-      integer          :: cp_matls_present
+      double precision, save :: dmatprp(300,500)
+      character(len=24), save, dimension(300,500) :: smatprp
+      integer, save    :: cp_matls_present
 c
 c     ===================== boundary condition ========================
 c
@@ -33,8 +33,8 @@ c
 c
 c     ================== Arrays to convert F to u =====================
 c
-      real(8), allocatable :: BTB(:)
-      integer, allocatable :: ia_btb(:), ja_btb(:)
+      real(8), save, allocatable :: BTB(:)
+      integer, save, allocatable :: ia_btb(:), ja_btb(:)
 c
 c     ================== Newton-Raphson loop control ==================
       real(8), save :: straininc, tolPCG, tolNR
@@ -64,12 +64,16 @@ c          coeffs2 is the imaginary part of e^(-i*x*h/2)
 c          for forward transformation, use (coeffs1, coeffs2)
 c          for backward transformation, use (coeffs1, -coeffs2)
 c
-      real(8), allocatable :: coeffs1(:), coeffs2(:)
+      real(8), save, allocatable :: coeffs1(:), coeffs2(:)
 
 c     ================ pcg related temporary variables ================
       real(8), allocatable :: tmpPcg( :, : )
 
 c     =============== G_K_dF related temporary variables ===============
       real(8), dimension(:,:), allocatable :: real1, real2, real3
+c
+c
+c
+      real(8), save :: start_wall_time
 
       end module
