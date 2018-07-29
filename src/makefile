@@ -80,7 +80,8 @@ OBJ = $(MODS) \
 	$(OD)/compute_checks.o \
 	$(OD)/tangent_homo.o \
 	$(OD)/cpu_time.o \
-	$(OD)/thyme.o
+	$(OD)/thyme.o \
+	$(OD)/outime.o
 #
 #                          link
 #

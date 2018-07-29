@@ -199,6 +199,8 @@ c
       call cleanup_crystal
       call fftAllocate( 2 )
 c
+      call outime
+c
       write(out,*)
       write(out,*)
       t1 = wcputime ( 1 )
