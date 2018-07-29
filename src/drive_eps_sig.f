@@ -26,6 +26,7 @@ c                         local
       integer, external :: omp_get_thread_num
 c
       debug = .false.
+      call thyme( 2, 1 )
 c
       call omp_set_dynamic( .false. )
 c$OMP PARALLEL DO
@@ -36,7 +37,11 @@ c$OMP&         SHARED( nelblk, iiter, step )
         call do_nleps_block( blk, iiter, step )
       enddo
 c$OMP END PARALLEL DO
-
+c
+      call thyme( 2, 2 )
+c
+      return
+c
       end subroutine
 c
 c     ****************************************************************

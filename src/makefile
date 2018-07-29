@@ -79,7 +79,8 @@ OBJ = $(MODS) \
 	$(OD)/mm10_f.o \
 	$(OD)/compute_checks.o \
 	$(OD)/tangent_homo.o \
-	$(OD)/cpu_time.o
+	$(OD)/cpu_time.o \
+	$(OD)/thyme.o
 #
 #                          link
 #

@@ -128,6 +128,11 @@ c
       cp_matls_present = -1
       nummat = 0
 c
+c                       initialize timing parameters.
+c
+      times(1:mxtim,1) = zero
+      times(1:mxtim,2) = zero
+c
 c     hard code NR loop parameters in fft.mod
 c
       debug = .false.

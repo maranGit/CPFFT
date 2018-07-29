@@ -231,6 +231,7 @@ c     internal variables
       real(8), external :: dnrm2
 c
       data debug /.false./
+      call thyme( 1, 1 )
 c
 c     initialize parameters
 c
@@ -340,6 +341,9 @@ c
 c              release memory in dcg, otherwise memory leak
 c
       call MKL_FREE_BUFFERS
+c
+      call thyme( 1, 2 )
+c
       return
 c
  9000 format(5x,'>>> pcg: improper tolerance',D9.2)
