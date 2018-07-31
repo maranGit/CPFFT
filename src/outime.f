@@ -32,6 +32,8 @@ c
             clctyp= 'pcg solution vector update:   '
          else if(calc.eq.2) then
             clctyp= 'sig-eps & internal force:     '
+         else if(calc.eq.3) then
+            clctyp= 'patran output:                '
          end if
          write(out,9010) clctyp
          write(out,9020) times(calc,1),

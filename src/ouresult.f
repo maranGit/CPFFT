@@ -16,6 +16,10 @@ c                 global
 c
       integer :: step
 c
+c                 output timing
+c
+      call thyme( 3, 1 )
+c
 c                 print nodal displacement
 c
       call oudisp( step )
@@ -28,7 +32,11 @@ c
 c                 print element state variables
 c
       call oustates()
-
+c
+c                 output timing
+c
+      call thyme( 3, 2 )
+c
       return
 
       end subroutine
